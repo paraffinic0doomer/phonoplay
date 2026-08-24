@@ -84,13 +84,34 @@ class Settings(BaseSettings):
 
     @property
     def groq_api_key_pool(self) -> list[str]:
-        """Read configured keys without exposing them to application output."""
+        """
+        Read configured keys without exposing them to application output.
+
+        Runs during startup, so it must never raise. An earlier version
+        indexed `Path(__file__).resolve().parents[3]` unconditionally to find
+        the repository root. That holds on a dev checkout
+        (api/app/config.py -> 5 ansectors) and raises IndexError in a
+        container, where the file lives at /app/app/config.py with only three.
+        The result was a crash in the FastAPI lifespan and `Exited with
+        status 3` on deploy — uvicorn's startup-failure code — for what is
+        only a local-development convenience.
+        """
         keys = [key.strip() for key in self.groq_api_keys.split(",") if key.strip()]
         if self.groq_api_key.strip() and not self.groq_keys_file:
             keys.append(self.groq_api_key.strip())
-        paths = [Path(self.groq_keys_file)] if self.groq_keys_file else [
-            Path.cwd() / "groq.txt", Path(__file__).resolve().parents[3] / "groq.txt"
-        ]
+
+        if self.groq_keys_file:
+            paths = [Path(self.groq_keys_file)]
+        else:
+            # A key file next to the working directory, and one at the
+            # repository root when there *is* one above us. Deployments pass
+            # the key through the environment and match neither, which is the
+            # intended behaviour rather than a fallback.
+            here = Path(__file__).resolve()
+            paths = [Path.cwd() / "groq.txt"]
+            if len(here.parents) > 3:
+                paths.append(here.parents[3] / "groq.txt")
+
         for path in paths:
             try:
                 if path.is_file():
