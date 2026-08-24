@@ -1,0 +1,1087 @@
+Disassembly of app/acoustic/analyzer.py as it existed at 2026-08-23 22:37,
+written by a concurrent session and overwritten at 2026-08-24 01:11.
+
+Recovered from Python 3.14 bytecode. Logic, constants, names and structure are
+intact; comments and formatting are not recoverable. See README.md in this
+directory for why it was kept.
+
+  --           MAKE_CELL                0 (__conditional_annotations__)
+
+   0           RESUME                   0
+
+   1           BUILD_SET                0
+               STORE_NAME               0 (__conditional_annotations__)
+               SETUP_ANNOTATIONS
+               LOAD_CONST               0 ('Evidence-based MVP pronunciation analysis.\n\nThis is deliberately a small signal-processing model, not a diagnostic model.\nIt compares measurements from the estimated target segment with broad,\nspeaker-normalized reference profiles. The score is the exponential of the\nweighted distance in feature space, so every result has inspectable acoustic\nevidence and no score is fabricated when the recording is unusable.\n')
+               STORE_NAME               1 (__doc__)
+
+  10           LOAD_SMALL_INT           0
+               LOAD_CONST               1 (('annotations',))
+               IMPORT_NAME              2 (__future__)
+               IMPORT_FROM              3 (annotations)
+               STORE_NAME               3 (annotations)
+               POP_TOP
+
+  12           LOAD_SMALL_INT           0
+               LOAD_CONST               2 (('dataclass',))
+               IMPORT_NAME              4 (dataclasses)
+               IMPORT_FROM              5 (dataclass)
+               STORE_NAME               5 (dataclass)
+               POP_TOP
+
+  13           LOAD_SMALL_INT           0
+               LOAD_CONST               3 (('Any',))
+               IMPORT_NAME              6 (typing)
+               IMPORT_FROM              7 (Any)
+               STORE_NAME               7 (Any)
+               POP_TOP
+
+  15           LOAD_SMALL_INT           0
+               LOAD_CONST               4 (None)
+               IMPORT_NAME              8 (numpy)
+               STORE_NAME               9 (np)
+
+  17           LOAD_SMALL_INT           1
+               LOAD_CONST               5 (('SIBILANT_SPLIT_HZ',))
+               IMPORT_NAME             10 (constants)
+               IMPORT_FROM             11 (SIBILANT_SPLIT_HZ)
+               STORE_NAME              11 (SIBILANT_SPLIT_HZ)
+               POP_TOP
+
+  18           LOAD_SMALL_INT           1
+               LOAD_CONST               6 (('FormantTrack',))
+               IMPORT_NAME             12 (formants)
+               IMPORT_FROM             13 (FormantTrack)
+               STORE_NAME              13 (FormantTrack)
+               POP_TOP
+
+  19           LOAD_SMALL_INT           1
+               LOAD_CONST               7 (('FrameSet',))
+               IMPORT_NAME             14 (frames)
+               IMPORT_FROM             15 (FrameSet)
+               STORE_NAME              15 (FrameSet)
+               POP_TOP
+
+  20           LOAD_SMALL_INT           1
+               LOAD_CONST               8 (('CANDIDATES', 'spec'))
+               IMPORT_NAME             16 (phonemes)
+               IMPORT_FROM             17 (CANDIDATES)
+               STORE_NAME              17 (CANDIDATES)
+               IMPORT_FROM             18 (spec)
+               STORE_NAME              18 (spec)
+               POP_TOP
+
+  21           LOAD_SMALL_INT           1
+               LOAD_CONST               9 (('QualityReport', 'assess'))
+               IMPORT_NAME             19 (quality)
+               IMPORT_FROM             20 (QualityReport)
+               STORE_NAME              20 (QualityReport)
+               IMPORT_FROM             21 (assess)
+               STORE_NAME              21 (assess)
+               POP_TOP
+
+  22           LOAD_SMALL_INT           1
+               LOAD_CONST              10 (('SegmentEstimate', 'locate'))
+               IMPORT_NAME             22 (segment)
+               IMPORT_FROM             23 (SegmentEstimate)
+               STORE_NAME              23 (SegmentEstimate)
+               IMPORT_FROM             24 (locate)
+               STORE_NAME              24 (locate)
+               POP_TOP
+
+  25           LOAD_NAME                5 (dataclass)
+               PUSH_NULL
+               LOAD_CONST              11 (True)
+               LOAD_CONST              12 (('frozen',))
+               CALL_KW                  1
+
+  26           LOAD_BUILD_CLASS
+               PUSH_NULL
+               LOAD_CONST              13 (<code object Profile at 0x000001D197F10B30, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 25>)
+               MAKE_FUNCTION
+               LOAD_CONST              14 ('Profile')
+               CALL                     2
+
+  25           CALL                     0
+
+  26           STORE_NAME              25 (Profile)
+
+  36           LOAD_CONST              15 ('s')
+               LOAD_NAME               25 (Profile)
+               PUSH_NULL
+               LOAD_CONST              16 ('hf_ratio')
+               LOAD_CONST              17 (0.58)
+               LOAD_CONST              18 ('centroid')
+               LOAD_CONST              19 (6200)
+               LOAD_CONST              20 ('zcr')
+               LOAD_CONST              21 (0.22)
+               LOAD_CONST              22 ('voicing')
+               LOAD_CONST              23 (0.08)
+               BUILD_MAP                4
+               LOAD_CONST              16 ('hf_ratio')
+               LOAD_CONST              24 (0.16)
+               LOAD_CONST              18 ('centroid')
+               LOAD_CONST              25 (1200)
+               LOAD_CONST              20 ('zcr')
+               LOAD_CONST              23 (0.08)
+               LOAD_CONST              22 ('voicing')
+               LOAD_CONST              26 (0.12)
+               BUILD_MAP                4
+               CALL                     2
+
+  37           LOAD_CONST              27 ('th')
+               LOAD_NAME               25 (Profile)
+               PUSH_NULL
+               LOAD_CONST              16 ('hf_ratio')
+               LOAD_CONST              28 (0.25)
+               LOAD_CONST              18 ('centroid')
+               LOAD_CONST              29 (3500)
+               LOAD_CONST              20 ('zcr')
+               LOAD_CONST              26 (0.12)
+               LOAD_CONST              22 ('voicing')
+               LOAD_CONST              30 (0.18)
+               BUILD_MAP                4
+               LOAD_CONST              16 ('hf_ratio')
+               LOAD_CONST              24 (0.16)
+               LOAD_CONST              18 ('centroid')
+               LOAD_CONST              31 (1300)
+               LOAD_CONST              20 ('zcr')
+               LOAD_CONST              23 (0.08)
+               LOAD_CONST              22 ('voicing')
+               LOAD_CONST              32 (0.15)
+               BUILD_MAP                4
+               CALL                     2
+
+  38           LOAD_CONST              33 ('sh')
+               LOAD_NAME               25 (Profile)
+               PUSH_NULL
+               LOAD_CONST              16 ('hf_ratio')
+               LOAD_CONST              34 (0.4)
+               LOAD_CONST              18 ('centroid')
+               LOAD_CONST              35 (4000)
+               LOAD_CONST              20 ('zcr')
+               LOAD_CONST              32 (0.15)
+               LOAD_CONST              22 ('voicing')
+               LOAD_CONST              36 (0.1)
+               BUILD_MAP                4
+               LOAD_CONST              16 ('hf_ratio')
+               LOAD_CONST              24 (0.16)
+               LOAD_CONST              18 ('centroid')
+               LOAD_CONST              37 (1100)
+               LOAD_CONST              20 ('zcr')
+               LOAD_CONST              23 (0.08)
+               LOAD_CONST              22 ('voicing')
+               LOAD_CONST              26 (0.12)
+               BUILD_MAP                4
+               CALL                     2
+
+  39           LOAD_CONST              38 ('f')
+               LOAD_NAME               25 (Profile)
+               PUSH_NULL
+               LOAD_CONST              16 ('hf_ratio')
+               LOAD_CONST              21 (0.22)
+               LOAD_CONST              18 ('centroid')
+               LOAD_CONST              39 (3600)
+               LOAD_CONST              20 ('zcr')
+               LOAD_CONST              36 (0.1)
+               LOAD_CONST              22 ('voicing')
+               LOAD_CONST              26 (0.12)
+               BUILD_MAP                4
+               LOAD_CONST              16 ('hf_ratio')
+               LOAD_CONST              24 (0.16)
+               LOAD_CONST              18 ('centroid')
+               LOAD_CONST              31 (1300)
+               LOAD_CONST              20 ('zcr')
+               LOAD_CONST              23 (0.08)
+               LOAD_CONST              22 ('voicing')
+               LOAD_CONST              32 (0.15)
+               BUILD_MAP                4
+               CALL                     2
+
+  40           LOAD_CONST              40 ('t')
+               LOAD_NAME               25 (Profile)
+               PUSH_NULL
+               LOAD_CONST              16 ('hf_ratio')
+               LOAD_CONST              41 (0.3)
+               LOAD_CONST              18 ('centroid')
+               LOAD_CONST              42 (4300)
+               LOAD_CONST              20 ('zcr')
+               LOAD_CONST              30 (0.18)
+               LOAD_CONST              22 ('voicing')
+               LOAD_CONST              23 (0.08)
+               BUILD_MAP                4
+               LOAD_CONST              16 ('hf_ratio')
+               LOAD_CONST              43 (0.2)
+               LOAD_CONST              18 ('centroid')
+               LOAD_CONST              44 (1600)
+               LOAD_CONST              20 ('zcr')
+               LOAD_CONST              36 (0.1)
+               LOAD_CONST              22 ('voicing')
+               LOAD_CONST              26 (0.12)
+               BUILD_MAP                4
+               CALL                     2
+
+  41           LOAD_CONST              45 ('r')
+               LOAD_NAME               25 (Profile)
+               PUSH_NULL
+               LOAD_CONST              46 ('f2')
+               LOAD_CONST              47 (1250)
+               LOAD_CONST              48 ('f3')
+               LOAD_CONST              49 (2100)
+               LOAD_CONST              22 ('voicing')
+               LOAD_CONST              50 (0.72)
+               BUILD_MAP                3
+               LOAD_CONST              46 ('f2')
+               LOAD_CONST              51 (450)
+               LOAD_CONST              48 ('f3')
+               LOAD_CONST              51 (450)
+               LOAD_CONST              22 ('voicing')
+               LOAD_CONST              30 (0.18)
+               BUILD_MAP                3
+               CALL                     2
+
+  42           LOAD_CONST              52 ('l')
+               LOAD_NAME               25 (Profile)
+               PUSH_NULL
+               LOAD_CONST              46 ('f2')
+               LOAD_CONST              53 (1550)
+               LOAD_CONST              48 ('f3')
+               LOAD_CONST              54 (2700)
+               LOAD_CONST              22 ('voicing')
+               LOAD_CONST              55 (0.76)
+               BUILD_MAP                3
+               LOAD_CONST              46 ('f2')
+               LOAD_CONST              56 (500)
+               LOAD_CONST              48 ('f3')
+               LOAD_CONST              57 (550)
+               LOAD_CONST              22 ('voicing')
+               LOAD_CONST              24 (0.16)
+               BUILD_MAP                3
+               CALL                     2
+
+  43           LOAD_CONST              58 ('w')
+               LOAD_NAME               25 (Profile)
+               PUSH_NULL
+               LOAD_CONST              46 ('f2')
+               LOAD_CONST              59 (850)
+               LOAD_CONST              48 ('f3')
+               LOAD_CONST              60 (2500)
+               LOAD_CONST              22 ('voicing')
+               LOAD_CONST              61 (0.7)
+               BUILD_MAP                3
+               LOAD_CONST              46 ('f2')
+               LOAD_CONST              62 (350)
+               LOAD_CONST              48 ('f3')
+               LOAD_CONST              56 (500)
+               LOAD_CONST              22 ('voicing')
+               LOAD_CONST              43 (0.2)
+               BUILD_MAP                3
+               CALL                     2
+
+  35           BUILD_MAP                8
+               STORE_NAME              26 (PROFILES)
+               LOAD_CONST              63 ('dict[str, Profile]')
+               LOAD_NAME               27 (__annotations__)
+               LOAD_CONST              64 ('PROFILES')
+               STORE_SUBSCR
+
+  47           LOAD_CONST              65 (<code object __annotate__ at 0x000001D197AB2010, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 47>)
+               MAKE_FUNCTION
+               LOAD_CONST              66 (<code object _median at 0x000001D197F6CCB0, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 47>)
+               MAKE_FUNCTION
+               SET_FUNCTION_ATTRIBUTE  16 (annotate)
+               STORE_NAME              28 (_median)
+
+  52           LOAD_CONST              67 (<code object __annotate__ at 0x000001D197A9A430, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 52>)
+               MAKE_FUNCTION
+               LOAD_CONST              68 (<code object _features at 0x000001D197C5ECF0, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 52>)
+               MAKE_FUNCTION
+               SET_FUNCTION_ATTRIBUTE  16 (annotate)
+               STORE_NAME              29 (_features)
+
+  72           LOAD_CONST              69 (<code object __annotate__ at 0x000001D197F10C30, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 72>)
+               MAKE_FUNCTION
+               LOAD_CONST              70 (<code object _distance at 0x000001D197D42000, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 72>)
+               MAKE_FUNCTION
+               SET_FUNCTION_ATTRIBUTE  16 (annotate)
+               STORE_NAME              30 (_distance)
+
+  90           LOAD_CONST              71 (<code object __annotate__ at 0x000001D197F10D30, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 90>)
+               MAKE_FUNCTION
+               LOAD_CONST              72 (<code object _classification at 0x000001D197D42660, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 90>)
+               MAKE_FUNCTION
+               SET_FUNCTION_ATTRIBUTE  16 (annotate)
+               STORE_NAME              31 (_classification)
+
+ 104           LOAD_CONST              75 (('onset',))
+               LOAD_CONST              73 (<code object __annotate__ at 0x000001D197F10E30, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 104>)
+               MAKE_FUNCTION
+               LOAD_CONST              74 (<code object analyze at 0x000001D197D42E50, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 104>)
+               MAKE_FUNCTION
+               SET_FUNCTION_ATTRIBUTE  16 (annotate)
+               SET_FUNCTION_ATTRIBUTE   1 (defaults)
+               STORE_NAME              32 (analyze)
+               LOAD_CONST               4 (None)
+               RETURN_VALUE
+
+Disassembly of <code object Profile at 0x000001D197F10B30, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 25>:
+ 25           RESUME                   0
+              LOAD_NAME                0 (__name__)
+              STORE_NAME               1 (__module__)
+              LOAD_CONST               0 ('Profile')
+              STORE_NAME               2 (__qualname__)
+              LOAD_SMALL_INT          25
+              STORE_NAME               3 (__firstlineno__)
+              SETUP_ANNOTATIONS
+
+ 27           LOAD_CONST               1 ('Broad prototype values and scales, suitable for a hackathon MVP.')
+              STORE_NAME               4 (__doc__)
+
+ 29           LOAD_CONST               2 ('dict[str, float]')
+              LOAD_NAME                5 (__annotations__)
+              LOAD_CONST               3 ('values')
+              STORE_SUBSCR
+
+ 30           LOAD_CONST               2 ('dict[str, float]')
+              LOAD_NAME                5 (__annotations__)
+              LOAD_CONST               4 ('scales')
+              STORE_SUBSCR
+              LOAD_CONST               5 (())
+              STORE_NAME               6 (__static_attributes__)
+              LOAD_CONST               6 (None)
+              RETURN_VALUE
+
+Disassembly of <code object __annotate__ at 0x000001D197AB2010, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 47>:
+ 47           RESUME                   0
+              LOAD_FAST_BORROW         0 (format)
+              LOAD_SMALL_INT           2
+              COMPARE_OP             132 (>)
+              POP_JUMP_IF_FALSE        3 (to L1)
+              NOT_TAKEN
+              LOAD_COMMON_CONSTANT     1 (NotImplementedError)
+              RAISE_VARARGS            1
+      L1:     LOAD_CONST               1 ('values')
+              LOAD_CONST               2 ('np.ndarray')
+              LOAD_CONST               3 ('return')
+              LOAD_CONST               4 ('float | None')
+              BUILD_MAP                2
+              RETURN_VALUE
+
+Disassembly of <code object _median at 0x000001D197F6CCB0, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 47>:
+ 47           RESUME                   0
+
+ 48           LOAD_FAST_BORROW         0 (values)
+              LOAD_GLOBAL              0 (np)
+              LOAD_ATTR                2 (isfinite)
+              PUSH_NULL
+              LOAD_FAST_BORROW         0 (values)
+              CALL                     1
+              BINARY_OP               26 ([])
+              STORE_FAST               1 (valid)
+
+ 49           LOAD_FAST_BORROW         1 (valid)
+              LOAD_ATTR                4 (size)
+              TO_BOOL
+              POP_JUMP_IF_FALSE       42 (to L1)
+              NOT_TAKEN
+              LOAD_GLOBAL              7 (round + NULL)
+              LOAD_GLOBAL              9 (float + NULL)
+              LOAD_GLOBAL              0 (np)
+              LOAD_ATTR               10 (median)
+              PUSH_NULL
+              LOAD_FAST_BORROW         1 (valid)
+              CALL                     1
+              CALL                     1
+              LOAD_SMALL_INT           2
+              CALL                     2
+              RETURN_VALUE
+      L1:     LOAD_CONST               1 (None)
+              RETURN_VALUE
+
+Disassembly of <code object __annotate__ at 0x000001D197A9A430, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 52>:
+ 52           RESUME                   0
+              LOAD_FAST_BORROW         0 (format)
+              LOAD_SMALL_INT           2
+              COMPARE_OP             132 (>)
+              POP_JUMP_IF_FALSE        3 (to L1)
+              NOT_TAKEN
+              LOAD_COMMON_CONSTANT     1 (NotImplementedError)
+              RAISE_VARARGS            1
+      L1:     LOAD_CONST               1 ('frames')
+              LOAD_CONST               2 ('FrameSet')
+              LOAD_CONST               3 ('formants')
+              LOAD_CONST               4 ('FormantTrack')
+              LOAD_CONST               5 ('segment')
+              LOAD_CONST               6 ('SegmentEstimate')
+              LOAD_CONST               7 ('target')
+              LOAD_CONST               8 ('str')
+              LOAD_CONST               9 ('return')
+              LOAD_CONST              10 ('dict[str, Any]')
+              BUILD_MAP                5
+              RETURN_VALUE
+
+Disassembly of <code object _features at 0x000001D197C5ECF0, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 52>:
+ 52           RESUME                   0
+
+ 53           LOAD_FAST_BORROW         0 (frames)
+              LOAD_ATTR                1 (window + NULL|self)
+              LOAD_FAST_BORROW         2 (segment)
+              LOAD_ATTR                2 (measure_start_s)
+              LOAD_FAST_BORROW         2 (segment)
+              LOAD_ATTR                4 (measure_end_s)
+              CALL                     2
+              STORE_FAST               4 (window)
+
+ 54           LOAD_FAST_BORROW         0 (frames)
+              LOAD_ATTR                6 (magnitude)
+              LOAD_CONST               0 (slice(None, None, None))
+              LOAD_FAST_BORROW         4 (window)
+              BUILD_TUPLE              2
+              BINARY_OP               26 ([])
+              LOAD_SMALL_INT           2
+              BINARY_OP                8 (**)
+              STORE_FAST               5 (power)
+
+ 55           LOAD_FAST_BORROW         5 (power)
+              LOAD_ATTR                9 (sum + NULL|self)
+              LOAD_SMALL_INT           0
+              LOAD_CONST               1 (('axis',))
+              CALL_KW                  1
+              LOAD_CONST               2 (1e-12)
+              BINARY_OP                0 (+)
+              STORE_FAST               6 (total)
+
+ 56           LOAD_FAST_BORROW         0 (frames)
+              LOAD_ATTR               10 (freqs)
+              LOAD_CONST              12 ((slice(None, None, None), None))
+              BINARY_OP               26 ([])
+              LOAD_FAST_BORROW         5 (power)
+              BINARY_OP                5 (*)
+              LOAD_ATTR                9 (sum + NULL|self)
+              LOAD_SMALL_INT           0
+              LOAD_CONST               1 (('axis',))
+              CALL_KW                  1
+              LOAD_FAST_BORROW         6 (total)
+              BINARY_OP               11 (/)
+              STORE_FAST               7 (centroid)
+
+ 57           LOAD_FAST_BORROW_LOAD_FAST_BORROW 80 (power, frames)
+              LOAD_ATTR               10 (freqs)
+              LOAD_GLOBAL             12 (SIBILANT_SPLIT_HZ)
+              COMPARE_OP             172 (>=)
+              BINARY_OP               26 ([])
+              LOAD_ATTR                9 (sum + NULL|self)
+              LOAD_SMALL_INT           0
+              LOAD_CONST               1 (('axis',))
+              CALL_KW                  1
+              LOAD_FAST_BORROW         6 (total)
+              BINARY_OP               11 (/)
+              STORE_FAST               8 (hf)
+
+ 59           LOAD_CONST               3 ('target_duration_s')
+              LOAD_GLOBAL             15 (round + NULL)
+              LOAD_FAST_BORROW         2 (segment)
+              LOAD_ATTR               16 (duration_s)
+              LOAD_SMALL_INT           4
+              CALL                     2
+
+ 60           LOAD_CONST               4 ('spectral_centroid_hz')
+              LOAD_GLOBAL             19 (_median + NULL)
+              LOAD_FAST_BORROW         7 (centroid)
+              CALL                     1
+
+ 61           LOAD_CONST               5 ('sibilant_ratio')
+              LOAD_GLOBAL             19 (_median + NULL)
+              LOAD_FAST_BORROW         8 (hf)
+              CALL                     1
+
+ 62           LOAD_CONST               6 ('zero_crossing_rate')
+              LOAD_GLOBAL             19 (_median + NULL)
+              LOAD_FAST_BORROW         0 (frames)
+              LOAD_ATTR               20 (zcr)
+              LOAD_FAST_BORROW         4 (window)
+              BINARY_OP               26 ([])
+              CALL                     1
+
+ 63           LOAD_CONST               7 ('voicing')
+              LOAD_GLOBAL             19 (_median + NULL)
+              LOAD_FAST_BORROW         0 (frames)
+              LOAD_ATTR               22 (voicing)
+              LOAD_FAST_BORROW         4 (window)
+              BINARY_OP               26 ([])
+              CALL                     1
+
+ 64           LOAD_CONST               8 ('f2_hz')
+              LOAD_GLOBAL             19 (_median + NULL)
+              LOAD_FAST_BORROW         1 (formants)
+              LOAD_ATTR               24 (f2)
+              LOAD_FAST_BORROW         4 (window)
+              BINARY_OP               26 ([])
+              CALL                     1
+
+ 65           LOAD_CONST               9 ('f3_hz')
+              LOAD_GLOBAL             19 (_median + NULL)
+              LOAD_FAST_BORROW         1 (formants)
+              LOAD_ATTR               26 (f3)
+              LOAD_FAST_BORROW         4 (window)
+              BINARY_OP               26 ([])
+              CALL                     1
+
+ 66           LOAD_CONST              10 ('formant_method')
+              LOAD_FAST_BORROW         1 (formants)
+              LOAD_ATTR               28 (method)
+
+ 67           LOAD_CONST              11 ('segment_method')
+              LOAD_FAST_BORROW         2 (segment)
+              LOAD_ATTR               28 (method)
+
+ 58           BUILD_MAP                9
+              STORE_FAST               9 (values)
+
+ 69           LOAD_FAST_BORROW         9 (values)
+              RETURN_VALUE
+
+Disassembly of <code object __annotate__ at 0x000001D197F10C30, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 72>:
+ 72           RESUME                   0
+              LOAD_FAST_BORROW         0 (format)
+              LOAD_SMALL_INT           2
+              COMPARE_OP             132 (>)
+              POP_JUMP_IF_FALSE        3 (to L1)
+              NOT_TAKEN
+              LOAD_COMMON_CONSTANT     1 (NotImplementedError)
+              RAISE_VARARGS            1
+      L1:     LOAD_CONST               1 ('key')
+              LOAD_CONST               2 ('str')
+              LOAD_CONST               3 ('features')
+              LOAD_CONST               4 ('dict[str, Any]')
+              LOAD_CONST               5 ('return')
+              LOAD_CONST               6 ('float')
+              BUILD_MAP                3
+              RETURN_VALUE
+
+Disassembly of <code object _distance at 0x000001D197D42000, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 72>:
+ 72           RESUME                   0
+
+ 73           LOAD_GLOBAL              0 (PROFILES)
+              LOAD_FAST_BORROW         0 (key)
+              BINARY_OP               26 ([])
+              STORE_FAST               2 (profile)
+
+ 75           LOAD_CONST               0 ('hf_ratio')
+              LOAD_CONST               1 ('sibilant_ratio')
+
+ 76           LOAD_CONST               2 ('centroid')
+              LOAD_CONST               3 ('spectral_centroid_hz')
+
+ 77           LOAD_CONST               4 ('zcr')
+              LOAD_CONST               5 ('zero_crossing_rate')
+
+ 78           LOAD_CONST               6 ('f2')
+              LOAD_CONST               7 ('f2_hz')
+
+ 79           LOAD_CONST               8 ('f3')
+              LOAD_CONST               9 ('f3_hz')
+
+ 74           BUILD_MAP                5
+              STORE_FAST               3 (aliases)
+
+ 81           BUILD_LIST               0
+              STORE_FAST               4 (distances)
+
+ 82           LOAD_FAST_BORROW         2 (profile)
+              LOAD_ATTR                2 (values)
+              LOAD_ATTR                5 (items + NULL|self)
+              CALL                     0
+              GET_ITER
+      L1:     FOR_ITER               137 (to L4)
+              UNPACK_SEQUENCE          2
+              STORE_FAST_STORE_FAST   86 (name, expected)
+
+ 83           LOAD_FAST_BORROW         1 (features)
+              LOAD_ATTR                7 (get + NULL|self)
+              LOAD_FAST_BORROW         3 (aliases)
+              LOAD_ATTR                7 (get + NULL|self)
+              LOAD_FAST_BORROW_LOAD_FAST_BORROW 85 (name, name)
+              CALL                     2
+              CALL                     1
+              STORE_FAST               7 (actual)
+
+ 84           LOAD_FAST_BORROW         7 (actual)
+              POP_JUMP_IF_NONE        29 (to L2)
+              NOT_TAKEN
+              LOAD_GLOBAL              8 (np)
+              LOAD_ATTR               10 (isfinite)
+              PUSH_NULL
+              LOAD_FAST_BORROW         7 (actual)
+              CALL                     1
+              TO_BOOL
+              POP_JUMP_IF_TRUE         3 (to L3)
+              NOT_TAKEN
+
+ 85   L2:     JUMP_BACKWARD           71 (to L1)
+
+ 86   L3:     LOAD_FAST_BORROW         4 (distances)
+              LOAD_ATTR               13 (append + NULL|self)
+              LOAD_GLOBAL             15 (abs + NULL)
+              LOAD_GLOBAL             17 (float + NULL)
+              LOAD_FAST_BORROW         7 (actual)
+              CALL                     1
+              LOAD_FAST_BORROW         6 (expected)
+              BINARY_OP               10 (-)
+              CALL                     1
+              LOAD_FAST_BORROW         2 (profile)
+              LOAD_ATTR               18 (scales)
+              LOAD_FAST_BORROW         5 (name)
+              BINARY_OP               26 ([])
+              BINARY_OP               11 (/)
+              CALL                     1
+              POP_TOP
+              JUMP_BACKWARD          139 (to L1)
+
+ 82   L4:     END_FOR
+              POP_ITER
+
+ 87           LOAD_FAST_BORROW         4 (distances)
+              TO_BOOL
+              POP_JUMP_IF_FALSE       32 (to L5)
+              NOT_TAKEN
+              LOAD_GLOBAL             17 (float + NULL)
+              LOAD_GLOBAL              8 (np)
+              LOAD_ATTR               20 (mean)
+              PUSH_NULL
+              LOAD_FAST_BORROW         4 (distances)
+              CALL                     1
+              CALL                     1
+              RETURN_VALUE
+      L5:     LOAD_GLOBAL             17 (float + NULL)
+              LOAD_CONST              10 ('inf')
+              CALL                     1
+              RETURN_VALUE
+
+Disassembly of <code object __annotate__ at 0x000001D197F10D30, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 90>:
+ 90           RESUME                   0
+              LOAD_FAST_BORROW         0 (format)
+              LOAD_SMALL_INT           2
+              COMPARE_OP             132 (>)
+              POP_JUMP_IF_FALSE        3 (to L1)
+              NOT_TAKEN
+              LOAD_COMMON_CONSTANT     1 (NotImplementedError)
+              RAISE_VARARGS            1
+      L1:     LOAD_CONST               1 ('target')
+              LOAD_CONST               2 ('str')
+              LOAD_CONST               3 ('features')
+              LOAD_CONST               4 ('dict[str, Any]')
+              LOAD_CONST               5 ('quality')
+              LOAD_CONST               6 ('QualityReport')
+              LOAD_CONST               7 ('salience')
+              LOAD_CONST               8 ('float')
+              LOAD_CONST               9 ('return')
+              LOAD_CONST              10 ('tuple[str | None, float, float, str]')
+              BUILD_MAP                5
+              RETURN_VALUE
+
+Disassembly of <code object _classification at 0x000001D197D42660, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 90>:
+  --           MAKE_CELL                1 (features)
+
+  90           RESUME                   0
+
+  91           LOAD_GLOBAL              1 (sorted + NULL)
+               LOAD_FAST_BORROW         1 (features)
+               BUILD_TUPLE              1
+               LOAD_CONST               0 (<code object <genexpr> at 0x000001D197F19460, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 91>)
+               MAKE_FUNCTION
+               SET_FUNCTION_ATTRIBUTE   8 (closure)
+               LOAD_GLOBAL              2 (CANDIDATES)
+               LOAD_FAST_BORROW         0 (target)
+               BINARY_OP               26 ([])
+               GET_ITER
+               CALL                     0
+               CALL                     1
+               STORE_FAST               4 (distances)
+
+  92           LOAD_FAST_BORROW         4 (distances)
+               LOAD_SMALL_INT           0
+               BINARY_OP               26 ([])
+               UNPACK_SEQUENCE          2
+               STORE_FAST_STORE_FAST   86 (best_distance, best)
+
+  93           LOAD_GLOBAL              5 (len + NULL)
+               LOAD_FAST_BORROW         4 (distances)
+               CALL                     1
+               LOAD_SMALL_INT           1
+               COMPARE_OP             148 (bool(>))
+               POP_JUMP_IF_FALSE       17 (to L1)
+               NOT_TAKEN
+               LOAD_FAST_BORROW         4 (distances)
+               LOAD_SMALL_INT           1
+               BINARY_OP               26 ([])
+               LOAD_SMALL_INT           0
+               BINARY_OP               26 ([])
+               JUMP_FORWARD             8 (to L2)
+       L1:     LOAD_FAST_BORROW         5 (best_distance)
+               LOAD_SMALL_INT           1
+               BINARY_OP                0 (+)
+       L2:     STORE_FAST               7 (second_distance)
+
+  94           LOAD_GLOBAL              7 (float + NULL)
+               LOAD_GLOBAL              8 (np)
+               LOAD_ATTR               10 (clip)
+               PUSH_NULL
+               LOAD_FAST_BORROW_LOAD_FAST_BORROW 117 (second_distance, best_distance)
+               BINARY_OP               10 (-)
+               LOAD_CONST               1 (1.5)
+               BINARY_OP               11 (/)
+               LOAD_SMALL_INT           0
+               LOAD_SMALL_INT           1
+               CALL                     3
+               CALL                     1
+               STORE_FAST               8 (separation)
+
+  95           LOAD_GLOBAL              7 (float + NULL)
+               LOAD_GLOBAL              8 (np)
+               LOAD_ATTR               12 (exp)
+               PUSH_NULL
+               LOAD_FAST_BORROW         5 (best_distance)
+               UNARY_NEGATIVE
+               LOAD_CONST               2 (2.0)
+               BINARY_OP               11 (/)
+               CALL                     1
+               CALL                     1
+               STORE_FAST               9 (match)
+
+  96           LOAD_GLOBAL              7 (float + NULL)
+               LOAD_GLOBAL              8 (np)
+               LOAD_ATTR               10 (clip)
+               PUSH_NULL
+               LOAD_FAST_BORROW         9 (match)
+               LOAD_CONST               3 (0.45)
+               LOAD_CONST               4 (0.35)
+               LOAD_FAST_BORROW         8 (separation)
+               BINARY_OP                5 (*)
+               BINARY_OP                0 (+)
+               LOAD_CONST               5 (0.2)
+               LOAD_FAST_BORROW         3 (salience)
+               BINARY_OP                5 (*)
+               BINARY_OP                0 (+)
+               BINARY_OP                5 (*)
+               LOAD_FAST_BORROW         2 (quality)
+               LOAD_ATTR               14 (factor)
+               BINARY_OP                5 (*)
+               LOAD_SMALL_INT           0
+               LOAD_SMALL_INT           1
+               CALL                     3
+               CALL                     1
+               STORE_FAST              10 (confidence)
+
+  97           LOAD_GLOBAL              8 (np)
+               LOAD_ATTR               16 (isfinite)
+               PUSH_NULL
+               LOAD_FAST_BORROW         5 (best_distance)
+               CALL                     1
+               TO_BOOL
+               POP_JUMP_IF_FALSE        8 (to L3)
+               NOT_TAKEN
+               LOAD_FAST_BORROW        10 (confidence)
+               LOAD_CONST               6 (0.42)
+               COMPARE_OP              18 (bool(<))
+               POP_JUMP_IF_FALSE       27 (to L4)
+               NOT_TAKEN
+
+  98   L3:     LOAD_CONST               7 (None)
+               LOAD_GLOBAL             19 (round + NULL)
+               LOAD_FAST_BORROW         9 (match)
+               LOAD_SMALL_INT           3
+               CALL                     2
+               LOAD_GLOBAL             19 (round + NULL)
+               LOAD_FAST_BORROW        10 (confidence)
+               LOAD_SMALL_INT           3
+               CALL                     2
+               LOAD_CONST               8 ('UNCERTAIN_AUDIO')
+               BUILD_TUPLE              4
+               RETURN_VALUE
+
+  99   L4:     LOAD_FAST_BORROW_LOAD_FAST_BORROW 96 (best, target)
+               COMPARE_OP              88 (bool(==))
+               POP_JUMP_IF_FALSE       46 (to L5)
+               NOT_TAKEN
+
+ 100           LOAD_GLOBAL             21 (spec + NULL)
+               LOAD_FAST_BORROW         0 (target)
+               CALL                     1
+               LOAD_ATTR               22 (ipa)
+               LOAD_GLOBAL             19 (round + NULL)
+               LOAD_FAST_BORROW         9 (match)
+               LOAD_SMALL_INT           3
+               CALL                     2
+               LOAD_GLOBAL             19 (round + NULL)
+               LOAD_FAST_BORROW        10 (confidence)
+               LOAD_SMALL_INT           3
+               CALL                     2
+               LOAD_CONST               9 ('ON_TARGET')
+               BUILD_TUPLE              4
+               RETURN_VALUE
+
+ 101   L5:     LOAD_GLOBAL             21 (spec + NULL)
+               LOAD_FAST_BORROW         6 (best)
+               CALL                     1
+               LOAD_ATTR               22 (ipa)
+               LOAD_GLOBAL             19 (round + NULL)
+               LOAD_FAST_BORROW         9 (match)
+               LOAD_SMALL_INT           3
+               CALL                     2
+               LOAD_GLOBAL             19 (round + NULL)
+               LOAD_FAST_BORROW        10 (confidence)
+               LOAD_SMALL_INT           3
+               CALL                     2
+               LOAD_CONST              10 ('TARGET_SOUND_MISMATCH_')
+               LOAD_FAST_BORROW         6 (best)
+               LOAD_ATTR               25 (upper + NULL|self)
+               CALL                     0
+               FORMAT_SIMPLE
+               BUILD_STRING             2
+               BUILD_TUPLE              4
+               RETURN_VALUE
+
+Disassembly of <code object <genexpr> at 0x000001D197F19460, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 91>:
+  --           COPY_FREE_VARS           1
+
+  91           RETURN_GENERATOR
+               POP_TOP
+       L1:     RESUME                   0
+               LOAD_FAST                0 (.0)
+       L2:     FOR_ITER                19 (to L3)
+               STORE_FAST               1 (candidate)
+               LOAD_GLOBAL              1 (_distance + NULL)
+               LOAD_FAST_BORROW         1 (candidate)
+               LOAD_DEREF               2 (features)
+               CALL                     2
+               LOAD_FAST_BORROW         1 (candidate)
+               BUILD_TUPLE              2
+               YIELD_VALUE              0
+               RESUME                   5
+               POP_TOP
+               JUMP_BACKWARD           21 (to L2)
+       L3:     END_FOR
+               POP_ITER
+               LOAD_CONST               0 (None)
+               RETURN_VALUE
+
+  --   L4:     CALL_INTRINSIC_1         3 (INTRINSIC_STOPITERATION_ERROR)
+               RERAISE                  1
+ExceptionTable:
+  L1 to L4 -> L4 [0] lasti
+
+Disassembly of <code object __annotate__ at 0x000001D197F10E30, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 104>:
+104           RESUME                   0
+              LOAD_FAST_BORROW         0 (format)
+              LOAD_SMALL_INT           2
+              COMPARE_OP             132 (>)
+              POP_JUMP_IF_FALSE        3 (to L1)
+              NOT_TAKEN
+              LOAD_COMMON_CONSTANT     1 (NotImplementedError)
+              RAISE_VARARGS            1
+      L1:     LOAD_CONST               1 ('data')
+              LOAD_CONST               2 ('bytes')
+              LOAD_CONST               3 ('target_phoneme')
+              LOAD_CONST               4 ('str')
+              LOAD_CONST               5 ('position')
+              LOAD_CONST               4 ('str')
+              LOAD_CONST               6 ('return')
+              LOAD_CONST               7 ('dict[str, Any]')
+              BUILD_MAP                4
+              RETURN_VALUE
+
+Disassembly of <code object analyze at 0x000001D197D42E50, file "E:\PhonoPlay\phonoplay\api\app\acoustic\analyzer.py", line 104>:
+104           RESUME                   0
+
+106           LOAD_FAST_BORROW         1 (target_phoneme)
+              LOAD_ATTR                1 (removeprefix + NULL|self)
+              LOAD_CONST               1 ('/')
+              CALL                     1
+              LOAD_ATTR                3 (removesuffix + NULL|self)
+              LOAD_CONST               1 ('/')
+              CALL                     1
+              LOAD_ATTR                5 (lower + NULL|self)
+              CALL                     0
+              STORE_FAST               3 (target)
+
+107           LOAD_FAST_BORROW         3 (target)
+              LOAD_GLOBAL              6 (CANDIDATES)
+              CONTAINS_OP              1 (not in)
+              POP_JUMP_IF_FALSE       16 (to L1)
+              NOT_TAKEN
+
+108           LOAD_GLOBAL              9 (ValueError + NULL)
+              LOAD_CONST               2 ('unsupported target phoneme: ')
+              LOAD_FAST_BORROW         3 (target)
+              CONVERT_VALUE            2 (repr)
+              FORMAT_SIMPLE
+              BUILD_STRING             2
+              CALL                     1
+              RAISE_VARARGS            1
+
+109   L1:     LOAD_GLOBAL             11 (__import__ + NULL)
+              LOAD_CONST               3 ('app.acoustic.preprocess')
+              LOAD_CONST               4 ('prepare')
+              BUILD_LIST               1
+              LOAD_CONST               5 (('fromlist',))
+              CALL_KW                  2
+              LOAD_ATTR               13 (prepare + NULL|self)
+              LOAD_FAST_BORROW         0 (data)
+              CALL                     1
+              STORE_FAST               4 (signal)
+
+110           LOAD_GLOBAL             11 (__import__ + NULL)
+              LOAD_CONST               6 ('app.acoustic.frames')
+              LOAD_CONST               7 ('analyse')
+              BUILD_LIST               1
+              LOAD_CONST               5 (('fromlist',))
+              CALL_KW                  2
+              LOAD_ATTR               15 (analyse + NULL|self)
+              LOAD_FAST_BORROW         4 (signal)
+              LOAD_ATTR               16 (samples)
+              CALL                     1
+              STORE_FAST               5 (frames)
+
+111           LOAD_GLOBAL             11 (__import__ + NULL)
+              LOAD_CONST               8 ('app.acoustic.formants')
+              LOAD_CONST               9 ('track')
+              BUILD_LIST               1
+              LOAD_CONST               5 (('fromlist',))
+              CALL_KW                  2
+              LOAD_ATTR               19 (track + NULL|self)
+              LOAD_FAST_BORROW         4 (signal)
+              LOAD_ATTR               16 (samples)
+              LOAD_FAST_BORROW         5 (frames)
+              LOAD_ATTR               20 (times)
+              CALL                     2
+              STORE_FAST               6 (formants)
+
+112           LOAD_GLOBAL             23 (assess + NULL)
+              LOAD_FAST_BORROW_LOAD_FAST_BORROW 69 (signal, frames)
+              CALL                     2
+              STORE_FAST               7 (quality)
+
+113           LOAD_FAST_BORROW         7 (quality)
+              LOAD_ATTR               24 (ok)
+              TO_BOOL
+              POP_JUMP_IF_TRUE        66 (to L2)
+              NOT_TAKEN
+
+115           LOAD_CONST              10 ('target_phoneme')
+              LOAD_GLOBAL             27 (spec + NULL)
+              LOAD_FAST_BORROW         3 (target)
+              CALL                     1
+              LOAD_ATTR               28 (ipa)
+
+116           LOAD_CONST              11 ('estimated_match')
+              LOAD_CONST              12 (None)
+
+117           LOAD_CONST              13 ('similarity_score')
+              LOAD_CONST              12 (None)
+
+118           LOAD_CONST              14 ('confidence')
+              LOAD_FAST_BORROW         7 (quality)
+              LOAD_ATTR               30 (factor)
+
+119           LOAD_CONST              15 ('acoustic_features')
+              LOAD_CONST              16 ('quality')
+              LOAD_FAST_BORROW         7 (quality)
+              LOAD_ATTR               32 (__dict__)
+              BUILD_MAP                1
+
+120           LOAD_CONST              17 ('feedback_code')
+              LOAD_FAST_BORROW         7 (quality)
+              LOAD_ATTR               34 (blocking_code)
+
+114           BUILD_MAP                6
+              RETURN_VALUE
+
+122   L2:     LOAD_GLOBAL             37 (locate + NULL)
+              LOAD_FAST_BORROW_LOAD_FAST_BORROW 52 (target, signal)
+              LOAD_FAST_BORROW_LOAD_FAST_BORROW 86 (frames, formants)
+              LOAD_FAST_BORROW         2 (position)
+              CALL                     5
+              STORE_FAST               8 (segment)
+
+123           LOAD_FAST_BORROW         8 (segment)
+              POP_JUMP_IF_NOT_NONE    46 (to L3)
+              NOT_TAKEN
+
+125           LOAD_CONST              10 ('target_phoneme')
+              LOAD_GLOBAL             27 (spec + NULL)
+              LOAD_FAST_BORROW         3 (target)
+              CALL                     1
+              LOAD_ATTR               28 (ipa)
+
+126           LOAD_CONST              11 ('estimated_match')
+              LOAD_CONST              12 (None)
+
+127           LOAD_CONST              13 ('similarity_score')
+              LOAD_CONST              12 (None)
+
+128           LOAD_CONST              14 ('confidence')
+              LOAD_CONST              18 (0.0)
+
+129           LOAD_CONST              15 ('acoustic_features')
+              LOAD_CONST              16 ('quality')
+              LOAD_FAST_BORROW         7 (quality)
+              LOAD_ATTR               32 (__dict__)
+              BUILD_MAP                1
+
+130           LOAD_CONST              17 ('feedback_code')
+              LOAD_CONST              19 ('UNCERTAIN_AUDIO')
+
+124           BUILD_MAP                6
+              RETURN_VALUE
+
+132   L3:     LOAD_GLOBAL             39 (_features + NULL)
+              LOAD_FAST_BORROW_LOAD_FAST_BORROW 86 (frames, formants)
+              LOAD_FAST_BORROW_LOAD_FAST_BORROW 131 (segment, target)
+              CALL                     4
+              STORE_FAST               9 (features)
+
+133           LOAD_GLOBAL             41 (_classification + NULL)
+              LOAD_FAST_BORROW_LOAD_FAST_BORROW 57 (target, features)
+              LOAD_FAST_BORROW_LOAD_FAST_BORROW 120 (quality, segment)
+              LOAD_ATTR               42 (salience)
+              CALL                     4
+              UNPACK_SEQUENCE          4
+              STORE_FAST_STORE_FAST  171 (match, score)
+              STORE_FAST_STORE_FAST  205 (confidence, code)
+
+134           LOAD_FAST_BORROW         7 (quality)
+              LOAD_ATTR               32 (__dict__)
+              LOAD_FAST_BORROW         9 (features)
+              LOAD_CONST              16 ('quality')
+              STORE_SUBSCR
+
+135           LOAD_FAST_BORROW         8 (segment)
+              LOAD_ATTR               32 (__dict__)
+              LOAD_FAST_BORROW         9 (features)
+              LOAD_CONST              20 ('segment')
+              STORE_SUBSCR
+
+137           LOAD_CONST              10 ('target_phoneme')
+              LOAD_GLOBAL             27 (spec + NULL)
+              LOAD_FAST_BORROW         3 (target)
+              CALL                     1
+              LOAD_ATTR               28 (ipa)
+
+138           LOAD_CONST              11 ('estimated_match')
+              LOAD_FAST_BORROW        10 (match)
+
+139           LOAD_CONST              13 ('similarity_score')
+              LOAD_FAST_BORROW        11 (score)
+
+140           LOAD_CONST              14 ('confidence')
+              LOAD_FAST_BORROW        12 (confidence)
+
+141           LOAD_CONST              15 ('acoustic_features')
+              LOAD_FAST_BORROW         9 (features)
+
+142           LOAD_CONST              17 ('feedback_code')
+              LOAD_FAST_BORROW        13 (code)
+
+136           BUILD_MAP                6
+              RETURN_VALUE

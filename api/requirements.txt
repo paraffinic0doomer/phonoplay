@@ -1,0 +1,16 @@
+# Runtime dependencies, pinned by lower bound to match pyproject.toml.
+#
+# Kept as a separate file purely for Docker layer caching: this layer is
+# ~478 MB and slow to build, and it should only rebuild when a dependency
+# changes, not when app code does. Keep in sync with pyproject.toml.
+fastapi>=0.115
+uvicorn[standard]>=0.32
+pydantic>=2.9
+pydantic-settings>=2.6
+python-multipart>=0.0.12
+httpx>=0.27
+numpy>=1.26
+scipy>=1.12
+librosa>=0.10
+soundfile>=0.12
+praat-parselmouth>=0.4.3

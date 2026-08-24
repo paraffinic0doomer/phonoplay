@@ -1,0 +1,67 @@
+# Render Blueprint for the PhonoPlay analysis service.
+#
+# Why Render and not Vercel: this service needs ffmpeg as a real binary,
+# ~478 MB of scientific Python (against Vercel's 250 MB function limit), and
+# a writable disk that survives between requests. See api/Dockerfile.
+#
+# Verified locally before committing: the image builds, reports
+# `"ffmpeg": true` on /api/health, and produces measurements identical to a
+# Windows dev machine (speech_sank -> /s/ at 0.9304 on both). Resident memory
+# is 269 MB idle and does not grow across analyses, so it fits the 512 MB
+# free instance.
+
+services:
+  - type: web
+    name: phonoplay-api
+    runtime: docker
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: ./api
+    region: oregon
+    plan: free
+
+    # The lifespan preloads reference profiles and warms librosa's JIT paths,
+    # so the service is genuinely ready when this returns 200.
+    healthCheckPath: /api/health
+
+    envVars:
+      # Set in the Render dashboard, never committed. Without it the service
+      # still runs: the pronunciation measurement is entirely local, and only
+      # transcription and AI-generated practice material need a key.
+      - key: GROQ_API_KEY
+        sync: false
+
+      # A *different* model from GROQ_MODEL — that one is speech-to-text and
+      # cannot answer a chat completion. Verify against GET /openai/v1/models
+      # for your account before changing.
+      - key: GROQ_CHAT_MODEL
+        value: openai/gpt-oss-120b
+
+      - key: APP_ENV
+        value: production
+
+      # Only needed if the browser calls this service directly. The
+      # recommended setup proxies /api through a Vercel rewrite, which is a
+      # server-to-server hop with no browser CORS involved at all.
+      - key: CORS_ORIGINS
+        sync: false
+
+      # ── Journey persistence ──────────────────────────────────────────
+      #
+      # On the free plan this path is on the container's ephemeral
+      # filesystem. Render free services also spin down after 15 minutes of
+      # inactivity, so learner progress resets whenever that happens — the
+      # "come back later and continue" promise does not hold on free.
+      #
+      # Everything else works: analysis, scoring, the journey within a
+      # session. To make progress durable, move to a paid instance and
+      # uncomment the `disk:` block below.
+      - key: JOURNEY_DB_PATH
+        value: /data/journey.db
+
+    # Persistent storage requires a paid instance; Render does not offer
+    # disks on the free plan. Uncomment together with `plan: starter`.
+    #
+    # disk:
+    #   name: phonoplay-data
+    #   mountPath: /data
+    #   sizeGB: 1

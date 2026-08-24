@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Environment
+.env
+# Plain-text API keys. Never committed.
+groq.txt
+groq_keys.txt
+.env.local
+.env.*.local
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Runtime artifacts
+storage/
+# Synthesised reference audio, 288 files. A build artefact: reproduce with
+# api/scripts/build_reference_corpus.ps1. Only the measured profiles.json is
+# committed.
+api/reference_corpus/
+*.db
+.cache/
+
+# Editors / OS
+.DS_Store
+.vscode/
+.idea/

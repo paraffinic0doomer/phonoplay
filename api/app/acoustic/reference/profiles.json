@@ -1,0 +1,675 @@
+{
+  "version": 1,
+  "built": "2026-08-24",
+  "sample_rate": 16000,
+  "provenance": {
+    "method": "synthesised reference corpus, measured through the production analysis path",
+    "source": "Windows SAPI (System.Speech) text-to-speech",
+    "voices": [
+      "Microsoft David Desktop",
+      "Microsoft Zira Desktop"
+    ],
+    "rates": [
+      -2,
+      0,
+      2
+    ],
+    "position": "word-initial",
+    "tokens": 274,
+    "statistics": "median for the centre, MAD-derived sd floored at an estimate of real between-speaker variation",
+    "limitations": "app/acoustic/reference/README.md"
+  },
+  "profiles": {
+    "s": {
+      "ipa": "s",
+      "family": "fricative",
+      "tokens": 36,
+      "features": {
+        "rel_intensity_db": {
+          "mean": -14.4573,
+          "sd": 4.7759,
+          "measured_sd": 4.7759,
+          "weight": 1.2,
+          "n": 36
+        },
+        "centroid_hz": {
+          "mean": 5237.4639,
+          "sd": 700.0,
+          "measured_sd": 452.9207,
+          "weight": 1.0,
+          "n": 36
+        },
+        "hf_ratio": {
+          "mean": 0.9499,
+          "sd": 0.1,
+          "measured_sd": 0.0466,
+          "weight": 1.0,
+          "n": 36
+        },
+        "peak_hz": {
+          "mean": 5218.75,
+          "sd": 900.0,
+          "measured_sd": 741.3,
+          "weight": 0.8,
+          "n": 36
+        },
+        "tilt_db_per_khz": {
+          "mean": 0.6963,
+          "sd": 2.4008,
+          "measured_sd": 2.4008,
+          "weight": 0.8,
+          "n": 36
+        },
+        "flatness": {
+          "mean": 0.1055,
+          "sd": 0.06,
+          "measured_sd": 0.0084,
+          "weight": 0.6,
+          "n": 36
+        },
+        "rolloff85_hz": {
+          "mean": 6031.25,
+          "sd": 800.0,
+          "measured_sd": 625.4719,
+          "weight": 0.6,
+          "n": 36
+        },
+        "bandwidth_hz": {
+          "mean": 866.9844,
+          "sd": 400.0,
+          "measured_sd": 319.9687,
+          "weight": 0.5,
+          "n": 36
+        },
+        "zcr": {
+          "mean": 0.5902,
+          "sd": 0.05,
+          "measured_sd": 0.0286,
+          "weight": 0.5,
+          "n": 36
+        },
+        "duration_s": {
+          "mean": 0.1,
+          "sd": 0.035,
+          "measured_sd": 0.0297,
+          "weight": 0.5,
+          "n": 36
+        },
+        "voicing": {
+          "mean": 0.2796,
+          "sd": 0.12,
+          "measured_sd": 0.0268,
+          "weight": 0.4,
+          "n": 36
+        }
+      }
+    },
+    "th": {
+      "ipa": "θ",
+      "family": "fricative",
+      "tokens": 29,
+      "features": {
+        "rel_intensity_db": {
+          "mean": -23.5255,
+          "sd": 4.0,
+          "measured_sd": 2.5851,
+          "weight": 1.2,
+          "n": 29
+        },
+        "centroid_hz": {
+          "mean": 2434.7121,
+          "sd": 700.0,
+          "measured_sd": 352.8404,
+          "weight": 1.0,
+          "n": 29
+        },
+        "hf_ratio": {
+          "mean": 0.2072,
+          "sd": 0.1,
+          "measured_sd": 0.0979,
+          "weight": 1.0,
+          "n": 29
+        },
+        "peak_hz": {
+          "mean": 1625.0,
+          "sd": 1158.2812,
+          "measured_sd": 1158.2812,
+          "weight": 0.8,
+          "n": 29
+        },
+        "tilt_db_per_khz": {
+          "mean": -1.7264,
+          "sd": 1.5,
+          "measured_sd": 0.2105,
+          "weight": 0.8,
+          "n": 29
+        },
+        "flatness": {
+          "mean": 0.3597,
+          "sd": 0.1063,
+          "measured_sd": 0.1063,
+          "weight": 0.6,
+          "n": 29
+        },
+        "rolloff85_hz": {
+          "mean": 4750.0,
+          "sd": 800.0,
+          "measured_sd": 416.9812,
+          "weight": 0.6,
+          "n": 29
+        },
+        "bandwidth_hz": {
+          "mean": 1767.2303,
+          "sd": 400.0,
+          "measured_sd": 246.8198,
+          "weight": 0.5,
+          "n": 29
+        },
+        "zcr": {
+          "mean": 0.2618,
+          "sd": 0.05,
+          "measured_sd": 0.035,
+          "weight": 0.5,
+          "n": 29
+        },
+        "duration_s": {
+          "mean": 0.035,
+          "sd": 0.035,
+          "measured_sd": 0.0,
+          "weight": 0.5,
+          "n": 29
+        },
+        "voicing": {
+          "mean": 0.2405,
+          "sd": 0.12,
+          "measured_sd": 0.0393,
+          "weight": 0.4,
+          "n": 29
+        }
+      }
+    },
+    "sh": {
+      "ipa": "ʃ",
+      "family": "fricative",
+      "tokens": 36,
+      "features": {
+        "rel_intensity_db": {
+          "mean": -6.2742,
+          "sd": 6.0992,
+          "measured_sd": 6.0992,
+          "weight": 1.2,
+          "n": 36
+        },
+        "centroid_hz": {
+          "mean": 3770.7162,
+          "sd": 700.0,
+          "measured_sd": 203.2446,
+          "weight": 1.0,
+          "n": 36
+        },
+        "hf_ratio": {
+          "mean": 0.28,
+          "sd": 0.1,
+          "measured_sd": 0.0519,
+          "weight": 1.0,
+          "n": 36
+        },
+        "peak_hz": {
+          "mean": 3156.25,
+          "sd": 900.0,
+          "measured_sd": 46.3312,
+          "weight": 0.8,
+          "n": 36
+        },
+        "tilt_db_per_khz": {
+          "mean": -0.1968,
+          "sd": 2.8085,
+          "measured_sd": 2.8085,
+          "weight": 0.8,
+          "n": 36
+        },
+        "flatness": {
+          "mean": 0.1172,
+          "sd": 0.1319,
+          "measured_sd": 0.1319,
+          "weight": 0.6,
+          "n": 36
+        },
+        "rolloff85_hz": {
+          "mean": 5593.75,
+          "sd": 800.0,
+          "measured_sd": 324.3187,
+          "weight": 0.6,
+          "n": 36
+        },
+        "bandwidth_hz": {
+          "mean": 1137.957,
+          "sd": 400.0,
+          "measured_sd": 258.8099,
+          "weight": 0.5,
+          "n": 36
+        },
+        "zcr": {
+          "mean": 0.4677,
+          "sd": 0.05,
+          "measured_sd": 0.0267,
+          "weight": 0.5,
+          "n": 36
+        },
+        "duration_s": {
+          "mean": 0.055,
+          "sd": 0.035,
+          "measured_sd": 0.0148,
+          "weight": 0.5,
+          "n": 36
+        },
+        "voicing": {
+          "mean": 0.256,
+          "sd": 0.12,
+          "measured_sd": 0.0224,
+          "weight": 0.4,
+          "n": 36
+        }
+      }
+    },
+    "f": {
+      "ipa": "f",
+      "family": "fricative",
+      "tokens": 30,
+      "features": {
+        "rel_intensity_db": {
+          "mean": -25.1381,
+          "sd": 4.0,
+          "measured_sd": 2.012,
+          "weight": 1.2,
+          "n": 30
+        },
+        "centroid_hz": {
+          "mean": 2815.6075,
+          "sd": 1078.9353,
+          "measured_sd": 1078.9353,
+          "weight": 1.0,
+          "n": 30
+        },
+        "hf_ratio": {
+          "mean": 0.1327,
+          "sd": 0.1025,
+          "measured_sd": 0.1025,
+          "weight": 1.0,
+          "n": 30
+        },
+        "peak_hz": {
+          "mean": 1859.375,
+          "sd": 900.0,
+          "measured_sd": 810.7969,
+          "weight": 0.8,
+          "n": 30
+        },
+        "tilt_db_per_khz": {
+          "mean": -2.8643,
+          "sd": 1.5,
+          "measured_sd": 1.4802,
+          "weight": 0.8,
+          "n": 30
+        },
+        "flatness": {
+          "mean": 0.1903,
+          "sd": 0.0663,
+          "measured_sd": 0.0663,
+          "weight": 0.6,
+          "n": 30
+        },
+        "rolloff85_hz": {
+          "mean": 3562.5,
+          "sd": 1714.2562,
+          "measured_sd": 1714.2562,
+          "weight": 0.6,
+          "n": 30
+        },
+        "bandwidth_hz": {
+          "mean": 1369.6288,
+          "sd": 400.0,
+          "measured_sd": 100.5717,
+          "weight": 0.5,
+          "n": 30
+        },
+        "zcr": {
+          "mean": 0.3363,
+          "sd": 0.1158,
+          "measured_sd": 0.1158,
+          "weight": 0.5,
+          "n": 30
+        },
+        "duration_s": {
+          "mean": 0.04,
+          "sd": 0.035,
+          "measured_sd": 0.0185,
+          "weight": 0.5,
+          "n": 30
+        },
+        "voicing": {
+          "mean": 0.2333,
+          "sd": 0.12,
+          "measured_sd": 0.0247,
+          "weight": 0.4,
+          "n": 30
+        }
+      }
+    },
+    "t": {
+      "ipa": "t",
+      "family": "fricative",
+      "tokens": 36,
+      "features": {
+        "rel_intensity_db": {
+          "mean": -10.4787,
+          "sd": 4.6667,
+          "measured_sd": 4.6667,
+          "weight": 1.2,
+          "n": 36
+        },
+        "centroid_hz": {
+          "mean": 4510.6848,
+          "sd": 700.0,
+          "measured_sd": 192.8169,
+          "weight": 1.0,
+          "n": 36
+        },
+        "hf_ratio": {
+          "mean": 0.7903,
+          "sd": 0.1145,
+          "measured_sd": 0.1145,
+          "weight": 1.0,
+          "n": 36
+        },
+        "peak_hz": {
+          "mean": 4343.75,
+          "sd": 900.0,
+          "measured_sd": 138.9938,
+          "weight": 0.8,
+          "n": 36
+        },
+        "tilt_db_per_khz": {
+          "mean": -0.9576,
+          "sd": 2.1234,
+          "measured_sd": 2.1234,
+          "weight": 0.8,
+          "n": 36
+        },
+        "flatness": {
+          "mean": 0.2344,
+          "sd": 0.2712,
+          "measured_sd": 0.2712,
+          "weight": 0.6,
+          "n": 36
+        },
+        "rolloff85_hz": {
+          "mean": 5734.375,
+          "sd": 800.0,
+          "measured_sd": 138.9938,
+          "weight": 0.6,
+          "n": 36
+        },
+        "bandwidth_hz": {
+          "mean": 1100.2945,
+          "sd": 421.9152,
+          "measured_sd": 421.9152,
+          "weight": 0.5,
+          "n": 36
+        },
+        "zcr": {
+          "mean": 0.4758,
+          "sd": 0.05,
+          "measured_sd": 0.0277,
+          "weight": 0.5,
+          "n": 36
+        },
+        "duration_s": {
+          "mean": 0.055,
+          "sd": 0.035,
+          "measured_sd": 0.0148,
+          "weight": 0.5,
+          "n": 36
+        },
+        "voicing": {
+          "mean": 0.2241,
+          "sd": 0.12,
+          "measured_sd": 0.0694,
+          "weight": 0.4,
+          "n": 36
+        }
+      }
+    },
+    "r": {
+      "ipa": "ɹ",
+      "family": "approximant",
+      "tokens": 36,
+      "features": {
+        "f3_over_speaker_f3": {
+          "mean": 0.6401,
+          "sd": 0.07,
+          "measured_sd": 0.0547,
+          "weight": 1.4,
+          "n": 36
+        },
+        "f3_minus_f2_hz": {
+          "mean": 592.5429,
+          "sd": 250.0,
+          "measured_sd": 54.5404,
+          "weight": 1.2,
+          "n": 36
+        },
+        "f2_over_speaker_f3": {
+          "mean": 0.3997,
+          "sd": 0.05,
+          "measured_sd": 0.0226,
+          "weight": 1.0,
+          "n": 36
+        },
+        "release_flux": {
+          "mean": 0.2076,
+          "sd": 0.0867,
+          "measured_sd": 0.0867,
+          "weight": 0.9,
+          "n": 36
+        },
+        "mid_dip_db": {
+          "mean": -13.3047,
+          "sd": 4.366,
+          "measured_sd": 4.366,
+          "weight": 0.8,
+          "n": 36
+        },
+        "f2_slope_hz_per_s": {
+          "mean": 3859.9294,
+          "sd": 8513.836,
+          "measured_sd": 8513.836,
+          "weight": 0.6,
+          "n": 36
+        },
+        "f3_hz": {
+          "mean": 1608.8099,
+          "sd": 280.0,
+          "measured_sd": 193.3852,
+          "weight": 0.5,
+          "n": 36
+        },
+        "f2_hz": {
+          "mean": 1028.3759,
+          "sd": 250.0,
+          "measured_sd": 184.5127,
+          "weight": 0.4,
+          "n": 36
+        },
+        "f1_hz": {
+          "mean": 325.1262,
+          "sd": 120.0,
+          "measured_sd": 37.8933,
+          "weight": 0.4,
+          "n": 36
+        },
+        "duration_s": {
+          "mean": 0.095,
+          "sd": 0.0371,
+          "measured_sd": 0.0371,
+          "weight": 0.3,
+          "n": 36
+        }
+      }
+    },
+    "l": {
+      "ipa": "l",
+      "family": "approximant",
+      "tokens": 35,
+      "features": {
+        "f3_over_speaker_f3": {
+          "mean": 1.0013,
+          "sd": 0.2727,
+          "measured_sd": 0.2727,
+          "weight": 1.4,
+          "n": 35
+        },
+        "f3_minus_f2_hz": {
+          "mean": 1780.1229,
+          "sd": 727.3283,
+          "measured_sd": 727.3283,
+          "weight": 1.2,
+          "n": 35
+        },
+        "f2_over_speaker_f3": {
+          "mean": 0.3497,
+          "sd": 0.05,
+          "measured_sd": 0.0495,
+          "weight": 1.0,
+          "n": 35
+        },
+        "release_flux": {
+          "mean": 0.2291,
+          "sd": 0.1136,
+          "measured_sd": 0.1136,
+          "weight": 0.9,
+          "n": 35
+        },
+        "mid_dip_db": {
+          "mean": -22.432,
+          "sd": 4.2997,
+          "measured_sd": 4.2997,
+          "weight": 0.8,
+          "n": 35
+        },
+        "f2_slope_hz_per_s": {
+          "mean": -414.9855,
+          "sd": 6271.4001,
+          "measured_sd": 6271.4001,
+          "weight": 0.6,
+          "n": 35
+        },
+        "f3_hz": {
+          "mean": 2810.908,
+          "sd": 534.7096,
+          "measured_sd": 534.7096,
+          "weight": 0.5,
+          "n": 35
+        },
+        "f2_hz": {
+          "mean": 1030.785,
+          "sd": 250.0,
+          "measured_sd": 148.1509,
+          "weight": 0.4,
+          "n": 35
+        },
+        "f1_hz": {
+          "mean": 316.656,
+          "sd": 120.0,
+          "measured_sd": 38.0655,
+          "weight": 0.4,
+          "n": 35
+        },
+        "duration_s": {
+          "mean": 0.09,
+          "sd": 0.0371,
+          "measured_sd": 0.0371,
+          "weight": 0.3,
+          "n": 35
+        }
+      }
+    },
+    "w": {
+      "ipa": "w",
+      "family": "approximant",
+      "tokens": 36,
+      "features": {
+        "f3_over_speaker_f3": {
+          "mean": 1.0,
+          "sd": 0.07,
+          "measured_sd": 0.0486,
+          "weight": 1.4,
+          "n": 36
+        },
+        "f3_minus_f2_hz": {
+          "mean": 1562.2401,
+          "sd": 250.0,
+          "measured_sd": 202.3676,
+          "weight": 1.2,
+          "n": 36
+        },
+        "f2_over_speaker_f3": {
+          "mean": 0.3156,
+          "sd": 0.05,
+          "measured_sd": 0.0397,
+          "weight": 1.0,
+          "n": 36
+        },
+        "release_flux": {
+          "mean": 0.1898,
+          "sd": 0.0964,
+          "measured_sd": 0.0964,
+          "weight": 0.9,
+          "n": 36
+        },
+        "mid_dip_db": {
+          "mean": -20.6614,
+          "sd": 7.1246,
+          "measured_sd": 7.1246,
+          "weight": 0.8,
+          "n": 36
+        },
+        "f2_slope_hz_per_s": {
+          "mean": -1129.4715,
+          "sd": 9018.8047,
+          "measured_sd": 9018.8047,
+          "weight": 0.6,
+          "n": 36
+        },
+        "f3_hz": {
+          "mean": 2412.7701,
+          "sd": 280.0,
+          "measured_sd": 222.5067,
+          "weight": 0.5,
+          "n": 36
+        },
+        "f2_hz": {
+          "mean": 798.1122,
+          "sd": 250.0,
+          "measured_sd": 102.3523,
+          "weight": 0.4,
+          "n": 36
+        },
+        "f1_hz": {
+          "mean": 330.8435,
+          "sd": 120.0,
+          "measured_sd": 33.9537,
+          "weight": 0.4,
+          "n": 36
+        },
+        "duration_s": {
+          "mean": 0.09,
+          "sd": 0.035,
+          "measured_sd": 0.0297,
+          "weight": 0.3,
+          "n": 36
+        }
+      }
+    }
+  }
+}

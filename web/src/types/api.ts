@@ -1,0 +1,335 @@
+/**
+ * PhonoPlay API contract — hand-mirrored from `api/app/schemas.py`.
+ * See ARCHITECTURE.md §4. This file is the frontend's single source of truth
+ * for the shape of every backend response; nothing else should describe it.
+ *
+ * When `schemas.py` changes, change this file in the same commit.
+ */
+
+export type SoundId = 's' | 'r' | 'l' | 'th'
+
+export type PromptLevel = 'word' | 'sentence'
+
+/** GET /api/sounds */
+export interface TargetSound {
+  id: SoundId
+  ipa: string
+  label: string
+  description: string
+}
+
+/** GET /api/prompts */
+export interface Prompt {
+  id: string
+  text: string
+  target_sound: SoundId
+  /** Expected phoneme sequence, hand-verified at build time. */
+  phonemes: string[]
+  /** Indices into `phonemes` that are occurrences of the target sound. */
+  target_indices: number[]
+  level: PromptLevel
+  difficulty: number
+}
+
+/**
+ * What the browser captured, measured client-side and sent with the upload.
+ * The backend transcodes to 16 kHz mono WAV but preserves these values so the
+ * original capture conditions are never lost.
+ */
+export interface ClientAudioMeta {
+  mime_type: string
+  duration_s: number
+  sample_rate: number
+  channels: number
+  size_bytes: number
+}
+
+export interface AudioQuality {
+  ok: boolean
+  duration_s: number
+  snr_db: number
+  clipped: boolean
+  warnings: string[]
+  /** The pre-transcode capture metadata, echoed back by the backend. */
+  source: ClientAudioMeta | null
+}
+
+export interface TranscriptResult {
+  text: string
+  asr_confidence: number
+  word_match: boolean
+  normalized_edit_distance: number
+}
+
+export interface PhonemeObservation {
+  phoneme: string
+  prob: number
+}
+
+export type OccurrenceVerdict =
+  | 'on_target'
+  | 'substitution'
+  | 'distortion'
+  | 'omission'
+  | 'unclear'
+
+export interface TargetOccurrence {
+  index: number
+  start_s: number
+  end_s: number
+  /** Goodness of Pronunciation, log domain, <= 0. */
+  gop: number
+  /** GOP mapped to (0, 1] via exp(GOP / tau). */
+  gop_normalized: number
+  /** Most likely phonemes over the aligned segment, descending. */
+  observed_top: PhonemeObservation[]
+  verdict: OccurrenceVerdict
+}
+
+export interface TargetAnalysis {
+  target_phoneme: string
+  occurrences: TargetOccurrence[]
+}
+
+export interface TimelineSegment {
+  phoneme: string
+  start_s: number
+  end_s: number
+  gop_normalized: number
+}
+
+export interface AcousticFeatures {
+  f3_hz: number | null
+  f3_speaker_median_hz: number | null
+  spectral_centroid_hz: number | null
+  sibilant_ratio: number | null
+  target_duration_s: number | null
+}
+
+export type DeviationType =
+  | 'none'
+  | 'substitution'
+  | 'distortion'
+  | 'omission'
+  | 'unclear'
+  | 'inconclusive'
+
+export interface Deviation {
+  type: DeviationType
+  label: string | null
+  from: string | null
+  to: string | null
+  confidence: number
+  /** Which independent signals voted for this deviation. Never empty. */
+  evidence: string[]
+  explanation: string
+}
+
+export interface Scores {
+  overall: number
+  target_sound: number
+  /**
+   * Null when the responding endpoint did not transcribe. POST /api/attempts
+   * measures the target sound acoustically and leaves this unmeasured rather
+   * than reporting a zero that would read as a failure.
+   */
+  word_accuracy: number | null
+  confidence: number
+}
+
+export interface AttemptTimings {
+  ingest: number
+  asr: number
+  acoustic: number
+  total: number
+}
+
+/** POST /api/attempts, GET /api/attempts/{id} */
+export interface AttemptResult {
+  attempt_id: string
+  prompt: Pick<Prompt, 'id' | 'text' | 'target_sound'> & { target_ipa: string }
+  audio_quality: AudioQuality
+  transcript: TranscriptResult
+  target_analysis: TargetAnalysis
+  phoneme_timeline: TimelineSegment[]
+  acoustic_features: AcousticFeatures
+  deviation: Deviation
+  scores: Scores
+  timings_ms: AttemptTimings
+  /**
+   * Frontend-only marker. True when this result came from a development
+   * fixture rather than the analysis service. The UI must disclose it.
+   * The backend never sets this field.
+   */
+  _fixture?: boolean
+}
+
+/* ── Stage 1: transcription (POST /api/analyze) ───────────────────────
+ *
+ * Mirrors api/app/schemas.py::TranscriptionResponse.
+ *
+ * This is what was SAID, not how it was PRONOUNCED. Whisper repairs
+ * mispronunciations toward plausible English, so a transcript is a signal
+ * about which word was attempted and says nothing reliable about phoneme
+ * quality. `pronunciation_assessed` is always false and exists to make that
+ * impossible to overlook. Pronunciation scoring is a separate stage.
+ */
+
+export interface TranscriptWord {
+  word: string
+  start: number | null
+  end: number | null
+}
+
+export interface TranscriptSegment {
+  id: number
+  start: number
+  end: number
+  text: string
+  words: TranscriptWord[]
+  avg_logprob: number | null
+  no_speech_prob: number | null
+  compression_ratio: number | null
+}
+
+export interface ProcessedAudioMeta {
+  probed_duration_s: number | null
+  probed_sample_rate: number | null
+  probed_channels: number | null
+  codec: string | null
+  container: string | null
+  sample_rate: number
+  channels: number
+  duration_s: number
+  size_bytes: number
+  transcoded: boolean
+}
+
+export interface ProcessingMeta {
+  ingest_ms: number
+  transcription_ms: number
+  total_ms: number
+  provider: string
+  model: string
+}
+
+export interface TranscriptionResponse {
+  transcript: string
+  /** As the provider labels it, e.g. "English". */
+  language: string | null
+  /** ISO-639-1 when derivable, else null. */
+  language_code: string | null
+  duration: number | null
+  segments: TranscriptSegment[]
+  audio: ProcessedAudioMeta
+  source: ClientAudioMeta | null
+  processing: ProcessingMeta
+  stage: string
+  /** Always false. See the note above. */
+  pronunciation_assessed: boolean
+}
+
+export type ExerciseActivityType =
+  | 'minimal_pairs'
+  | 'word_ladder'
+  | 'sentence'
+  | 'isolation'
+
+export interface ExerciseItem {
+  text: string
+  /** Display-only counterpart in a minimal pair. Not itself practised. */
+  contrast: string | null
+  target_ipa: string
+  /**
+   * The prompt to load when the learner practises this item. Null when the
+   * word is not in the prompt bank, in which case the UI offers a fresh
+   * prompt for the same sound instead of a dead end.
+   */
+  prompt_id: string | null
+}
+
+/** POST /api/exercises */
+export interface Exercise {
+  id: string
+  attempt_id: string
+  target_sound: SoundId
+  deviation_label: string | null
+  title: string
+  cue: string
+  activity_type: ExerciseActivityType
+  items: ExerciseItem[]
+  difficulty: number
+  /** Whether Claude generated this or the deterministic bank did. */
+  source: 'llm' | 'fallback'
+  /** Frontend-only marker; see AttemptResult._fixture. */
+  _fixture?: boolean
+}
+
+/** GET /api/sessions/{id}/progress */
+export interface ProgressPoint {
+  attempt_n: number
+  score: number
+  ts: string
+}
+
+export interface SessionProgress {
+  by_sound: Partial<Record<SoundId, ProgressPoint[]>>
+  deltas: Partial<Record<SoundId, number>>
+}
+
+export type ApiErrorCode =
+  | 'AUDIO_TOO_SHORT'
+  | 'AUDIO_TOO_QUIET'
+  | 'AUDIO_CLIPPED'
+  | 'NO_SPEECH_DETECTED'
+  | 'ALIGNMENT_FAILED'
+  | 'MODEL_NOT_READY'
+  | 'LLM_UNAVAILABLE'
+  | 'UNSUPPORTED_AUDIO_FORMAT'
+  // Backend audio ingest (api/app/audio/ingest.py)
+  | 'EMPTY_AUDIO'
+  | 'INVALID_AUDIO'
+  | 'NO_AUDIO_STREAM'
+  | 'AUDIO_TOO_LARGE'
+  | 'AUDIO_TOO_LONG'
+  | 'TRANSCODE_FAILED'
+  | 'FFMPEG_MISSING'
+  // Transcription provider (api/app/stt/errors.py)
+  | 'STT_NOT_CONFIGURED'
+  | 'STT_AUTH_FAILED'
+  | 'STT_RATE_LIMITED'
+  | 'STT_TIMEOUT'
+  | 'STT_UNAVAILABLE'
+  | 'STT_INVALID_AUDIO'
+  | 'STT_BAD_RESPONSE'
+  | 'STT_FAILED'
+  | 'NOT_IMPLEMENTED'
+  | 'INVALID_REQUEST'
+  | 'INTERNAL_ERROR'
+  // Client-side conditions. Never returned by the backend, but they flow
+  // through the same error channel so the UI has one way to show problems.
+  | 'NETWORK_UNAVAILABLE'
+  | 'UPLOAD_FAILED'
+  | 'UPLOAD_TIMEOUT'
+  | 'MIC_DENIED'
+  | 'MIC_NOT_FOUND'
+  | 'MIC_BUSY'
+  | 'MIC_UNSUPPORTED'
+  | 'MIC_INSECURE_CONTEXT'
+  | 'RECORDING_FAILED'
+  | 'RECORDING_EMPTY'
+  | 'RECORDING_SILENT'
+  | 'UNKNOWN'
+
+export interface ApiErrorBody {
+  code: ApiErrorCode
+  message: string
+  retryable: boolean
+}
+
+/** GET /api/health */
+export interface HealthStatus {
+  status: 'ok' | 'warming' | 'degraded'
+  models: { asr: boolean; acoustic: boolean }
+  version: string
+}

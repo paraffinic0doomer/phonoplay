@@ -1,0 +1,1 @@
+"""Static, reviewed product data served by the API."""

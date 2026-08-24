@@ -1,0 +1,216 @@
+@import 'tailwindcss';
+
+/* ─────────────────────────────────────────────────────────────
+   PhonoPlay design tokens
+   "Lab notebook" — warm paper, deep ink, one saturated accent
+   per target sound. Colour never carries meaning on its own;
+   every sound also carries its IPA glyph and a text label.
+   ───────────────────────────────────────────────────────────── */
+@theme {
+  --color-paper: #faf7f2;
+  --color-paper-2: #f3eee4;
+  --color-paper-3: #ebe4d6;
+  --color-line: #e0d8c8;
+  --color-line-strong: #cdc2ac;
+
+  --color-ink: #17151d;
+  --color-ink-soft: #514d5e;
+  --color-ink-faint: #85808f;
+
+  --color-sound-s: #0f9d94;
+  --color-sound-r: #ea6a33;
+  --color-sound-l: #7458f5;
+  --color-sound-th: #2b7cf0;
+
+  --color-good: #14976b;
+  --color-warn: #c98410;
+  --color-bad: #d4483a;
+
+  --font-display:
+    'Outfit', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Bengali. Outfit has no Bengali glyphs, so বাংলা would fall back to
+     whatever the OS picks and sit at a different optical size beside the
+     Latin text. Noto Sans Bengali is loaded explicitly and the system faces
+     behind it (Nirmala UI on Windows, Kohinoor on Apple) are named rather
+     than left to chance. */
+  /* IPA. Outfit and IBM Plex Mono both lack the combining diacritics IPA
+     needs — the dental bridge U+032A in /t̪ʰ/ renders as a stray mark or a
+     box in either. These faces have the coverage; Segoe UI is the reliable
+     Windows fallback. */
+  --font-ipa:
+    'Charis SIL', 'Doulos SIL', 'Gentium Plus', 'Segoe UI',
+    'Lucida Sans Unicode', 'Arial Unicode MS', serif;
+
+  --font-bengali:
+    'Noto Sans Bengali', 'Nirmala UI', 'Kohinoor Bangla', 'Shonar Bangla',
+    'Vrinda', sans-serif;
+
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', monospace;
+
+  --radius-xl2: 1.75rem;
+
+  --animate-rise: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-pop: pop 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-breathe: breathe 2.6s ease-in-out infinite;
+  --animate-sweep: sweep 1.5s ease-in-out infinite;
+  --animate-blink: blink 1.2s steps(2, start) infinite;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.15;
+  }
+}
+@keyframes sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(220%);
+  }
+}
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-synthesis-weight: none;
+    -webkit-font-smoothing: antialiased;
+    /* Faint grid — the "lab notebook" ground. Decorative only. */
+    background-image:
+      linear-gradient(to right, rgba(23, 21, 29, 0.035) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(23, 21, 29, 0.035) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+
+  /* A single, consistent, high-contrast focus ring everywhere. */
+  :focus-visible {
+    outline: 3px solid var(--color-ink);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  button {
+    font-family: inherit;
+  }
+
+  ::selection {
+    background: var(--color-ink);
+    color: var(--color-paper);
+  }
+}
+
+@layer utilities {
+  /* Sound-themed surfaces read their colour from --sound, set by the
+     nearest themed container. Keeps per-sound theming to one variable. */
+  .sound-bg {
+    background-color: var(--sound);
+  }
+  .sound-text {
+    color: var(--sound);
+  }
+  .sound-border {
+    border-color: var(--sound);
+  }
+  .sound-tint {
+    background-color: color-mix(in oklab, var(--sound) 12%, var(--color-paper));
+  }
+  .sound-tint-strong {
+    background-color: color-mix(in oklab, var(--sound) 22%, var(--color-paper));
+  }
+
+  .label-mono {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  /* The one recurring surface. Deliberately flat: a hairline, a soft
+     offset shadow, no gradient. */
+  .panel {
+    background-color: var(--color-paper);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-xl2);
+    box-shadow: 0 1px 0 0 var(--color-line-strong);
+  }
+}
+
+/* Honour the OS setting. Motion here reinforces state changes, so it is
+   reduced to near-zero rather than removed entirely. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * Bengali script. Applied per element rather than per page: the interface is
+ * in English, and only the language's own name and the bridge anchors are in
+ * Bengali. `line-height` is raised because Bengali has taller ascenders and
+ * a matra line that the Latin metric clips.
+ */
+.script-bengali {
+  font-family: var(--font-bengali);
+  line-height: 1.55;
+}
+
+/*
+ * IPA. Never uppercased: IPA is case-sensitive and distinguishes symbols by
+ * case, so `text-transform: uppercase` from a label class does not merely
+ * look wrong, it changes what the symbol means. This class is what IPA gets
+ * instead of `.label-mono`.
+ */
+.ipa {
+  font-family: var(--font-ipa);
+  text-transform: none;
+  font-variant-ligatures: none;
+  letter-spacing: 0;
+}
