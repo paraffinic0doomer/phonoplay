@@ -99,7 +99,11 @@ export function ConfidenceMeter({ value }: { value: number }) {
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="label-mono text-ink-faint">Confidence</span>
+        {/* "Confidence" alone invites reading this as a second score
+            alongside the similarity number. It is not: it says how sure the
+            analysis is of the reading above it, which can be high precisely
+            when the match is low. */}
+        <span className="label-mono text-ink-faint">Sure of this reading</span>
         <span className={`text-sm font-semibold ${band.tone}`}>{band.label}</span>
       </div>
       <div
@@ -108,7 +112,7 @@ export function ConfidenceMeter({ value }: { value: number }) {
         aria-valuenow={Math.round(value * 100)}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label={`Analysis confidence: ${Math.round(value * 100)} percent`}
+        aria-label={`Certainty of this reading: ${Math.round(value * 100)} percent`}
       >
         {Array.from({ length: 10 }, (_, i) => (
           <span

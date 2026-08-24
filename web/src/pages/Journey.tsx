@@ -436,32 +436,74 @@ export function Journey() {
           )}
 
           {result.analysis.assessed ? (
-            <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-line pt-4 sm:grid-cols-4">
-              <div>
-                <dt className="label-mono text-ink-faint">Heard as</dt>
-                <dd className="mt-0.5 text-sm font-semibold text-ink">
-                  /{result.analysis.estimated_match_ipa}/
-                </dd>
-              </div>
-              <div>
-                <dt className="label-mono text-ink-faint">Similarity</dt>
-                <dd className="mt-0.5 text-sm font-semibold tabular-nums text-ink">
-                  {(result.analysis.similarity_score * 100).toFixed(0)}%
-                </dd>
-              </div>
-              <div>
-                <dt className="label-mono text-ink-faint">Confidence</dt>
-                <dd className="mt-0.5 text-sm font-semibold tabular-nums text-ink">
-                  {(result.analysis.confidence * 100).toFixed(0)}%
-                </dd>
-              </div>
-              <div>
-                <dt className="label-mono text-ink-faint">Took</dt>
-                <dd className="mt-0.5 text-sm font-semibold tabular-nums text-ink">
-                  {result.analysis.processing_ms}ms
-                </dd>
-              </div>
-            </dl>
+            <>
+              {/* The two percentages answer different questions, and shown as
+                  bare "Similarity / Confidence" they read as competing scores
+                  — a low match beside a high confidence looks contradictory.
+                  Each label now names what its number is about, and the line
+                  underneath spells out the pairing for this specific result. */}
+              <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-line pt-4 sm:grid-cols-4">
+                <div>
+                  <dt className="label-mono text-ink-faint">
+                    {/* `.ipa` opts out of label-mono's uppercase transform.
+                        IPA is case-sensitive, so /θ/ rendered as /Θ/ is not a
+                        styling quirk — it is a different symbol. */}
+                    Match to <span className="ipa">/{result.analysis.target_ipa}/</span>
+                  </dt>
+                  <dd className="mt-0.5 text-sm font-semibold tabular-nums text-ink">
+                    {(result.analysis.similarity_score * 100).toFixed(0)}%
+                  </dd>
+                </div>
+                <div>
+                  <dt className="label-mono text-ink-faint">Heard as</dt>
+                  <dd className="mt-0.5 text-sm font-semibold text-ink">
+                    /{result.analysis.estimated_match_ipa}/
+                  </dd>
+                </div>
+                <div>
+                  <dt className="label-mono text-ink-faint">Sure of that</dt>
+                  <dd className="mt-0.5 text-sm font-semibold tabular-nums text-ink">
+                    {(result.analysis.confidence * 100).toFixed(0)}%
+                  </dd>
+                </div>
+                <div>
+                  <dt className="label-mono text-ink-faint">Took</dt>
+                  <dd className="mt-0.5 text-sm font-semibold tabular-nums text-ink">
+                    {result.analysis.processing_ms}ms
+                  </dd>
+                </div>
+              </dl>
+
+              <p className="mt-3 text-xs leading-relaxed text-ink-soft">
+                {result.analysis.estimated_match === result.analysis.target_phoneme ? (
+                  <>
+                    <strong className="font-semibold text-ink">
+                      {(result.analysis.similarity_score * 100).toFixed(0)}%
+                    </strong>{' '}
+                    is how close this came to a clear /{result.analysis.target_ipa}/.{' '}
+                    <strong className="font-semibold text-ink">
+                      {(result.analysis.confidence * 100).toFixed(0)}%
+                    </strong>{' '}
+                    is how sure we are of that reading.
+                  </>
+                ) : (
+                  <>
+                    <strong className="font-semibold text-ink">
+                      {(result.analysis.similarity_score * 100).toFixed(0)}%
+                    </strong>{' '}
+                    is how close this came to /{result.analysis.target_ipa}/ — the
+                    sound you were asked for.{' '}
+                    <strong className="font-semibold text-ink">
+                      {(result.analysis.confidence * 100).toFixed(0)}%
+                    </strong>{' '}
+                    is how sure we are it was /
+                    {result.analysis.estimated_match_ipa}/ instead. A low match
+                    with high certainty means the recording was clear — and
+                    clearly a different sound.
+                  </>
+                )}
+              </p>
+            </>
           ) : (
             <p className="mt-4 rounded-2xl bg-paper-2 p-4 text-sm leading-relaxed text-ink-soft">
               No score is shown because none was produced. The recording did

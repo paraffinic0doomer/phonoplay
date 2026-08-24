@@ -90,9 +90,12 @@ export function Results() {
 
       {/* Score + the numbers behind it */}
       <section className="panel mt-6 flex flex-col items-center gap-8 p-6 sm:p-8 lg:flex-row lg:items-start">
+        {/* "match to /S/" rather than a bare "similarity": it names the
+            sound the number is measured against, so it cannot be read as an
+            overall grade for the attempt. */}
         <ScoreDial
           value={result.scores.overall}
-          label="similarity"
+          label="match"
           sublabel={`to ${profile.display}`}
         />
 
@@ -112,7 +115,7 @@ export function Results() {
             <Stat
               label="Target sound"
               value={`${Math.round(result.scores.target_sound)}%`}
-              hint="how close that one sound was"
+              hint={`how close this came to ${profile.display}`}
             />
             {/* Word accuracy is a transcription measure, and the attempt
                 endpoint does not transcribe — it returns null. Rendering
