@@ -99,7 +99,11 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().cors_origin_list,
     allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    # PUT is here for /api/journey/{learner}/profile, which sets the
+    # learner's first language. It was missing, and its preflight returned
+    # 400 — invisible behind a same-origin proxy, but a silent failure for
+    # any browser calling this service directly.
+    allow_methods=["GET", "POST", "PUT", "OPTIONS"],
     allow_headers=["*"],
 )
 
