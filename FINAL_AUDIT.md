@@ -125,6 +125,27 @@ need one.
 
 ## 4. Deployment steps
 
+### Live deployment
+
+| | URL |
+|---|---|
+| **App** | https://phonoplay-sound-lab.vercel.app |
+| **API** | https://phonoplay-api.onrender.com |
+
+Verified directly against the deployed API:
+
+| Check | Result |
+|---|---|
+| `/api/health` | `status: ok`, `ffmpeg: true`, key configured |
+| Acoustic analysis | `speech_sank` -> /s/ **0.9304** — identical to local and to the local container |
+| Substitution detection | `speech_thank` as /s/ -> **/th/**, similarity 0.0086 |
+| Transcription | `'sank'` via Groq, 353 ms |
+| Journey advancement | pass -> hold -> pass -> **advance to stage 2** |
+| AI material | `source: llm`, generated "sa" for the syllable stage |
+| Refusals | silence -> `NO_SPEECH_DETECTED`, no score |
+
+Analysis runs in ~200-300 ms on Render's free instance.
+
 ### Hosting split, and why
 
 **Vercel cannot host the backend.** Three measured blockers:
