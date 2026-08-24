@@ -33,3 +33,6 @@ api/reference_corpus/
 .DS_Store
 .vscode/
 .idea/
+
+# Stray Vite cache if a web command is run from the wrong directory
+.vite/
