@@ -125,40 +125,86 @@ need one.
 
 ## 4. Deployment steps
 
-Requires **Python 3.12+**, **Node 20+**, **ffmpeg on `PATH`**.
+### Hosting split, and why
 
-```bash
-# 1. Backend
-cd api
-python -m venv .venv
-.venv/Scripts/pip install -e ".[dev]"      # POSIX: .venv/bin/pip
-cp .env.example .env                        # add GROQ_API_KEY
-.venv/Scripts/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+**Vercel cannot host the backend.** Three measured blockers:
 
-# 2. Frontend
-cd web
-npm install
-npm run build
-npx vite preview --port 4173                # or serve dist/ from any static host
+| Blocker | Detail |
+|---|---|
+| Size | 478 MB site-packages vs Vercel's **250 MB** function limit. llvmlite 117 + scipy 115 + sklearn 44 + numpy 34 + parselmouth 32 + numba 30 = 413 MB before anything else |
+| ffmpeg | `audio/ingest.py` shells out to real binaries. A static build adds ~50–80 MB to an already-over-budget bundle |
+| Persistence | Journey SQLite needs a disk that survives invocations. Serverless filesystems are ephemeral, so progress would silently reset |
+
+Dropping librosa to shed llvmlite/numba/sklearn would still leave ~222 MB
+before ffmpeg, **and** would change the STFT/mel implementation that
+`profiles.json` was measured through — invalidating the reference data. Not a
+trade worth making.
+
+So: **frontend on Vercel, backend on Render** (`api/Dockerfile`,
+`render.yaml`).
+
+### Backend — Render
+
+The image was built and run locally before committing:
+
+- builds clean; `/api/health` reports `"ffmpeg": true`
+- **produces identical measurements to a Windows dev machine** —
+  `speech_sank` → /s/ at 0.9304, `speech_thank` → /th/ at 0.9629 on both
+- ready in ~12 s; **269 MB resident**, stable across analyses, so it fits the
+  512 MB free instance
+- image is 1.6 GB, which affects build time, not runtime
+
+Steps (needs a browser — Render Blueprints are connected from the dashboard):
+
+1. Render → **New → Blueprint** → connect `paraffinic0doomer/phonoplay`
+2. It reads `render.yaml` and creates the `phonoplay-api` service
+3. Set **`GROQ_API_KEY`** in the dashboard (marked `sync: false`, never committed)
+4. Wait for the first build — 1.6 GB, so allow several minutes
+5. Verify: `curl https://<service>.onrender.com/api/health` → `"ffmpeg": true`
+
+**Free-plan caveats that matter for a live demo:** services spin down after
+15 minutes idle and cold-start in ~50 s, and Render offers no persistent disk
+on free — so journey progress resets on restart. Everything else works.
+Uncomment the `disk:` block in `render.yaml` with `plan: starter` to make
+progress durable.
+
+### Frontend — Vercel
+
+`web/vercel.json` is committed: SPA rewrites so `/journey/s` survives a
+refresh, immutable asset caching, and `Permissions-Policy:
+microphone=(self)` — without which the browser blocks the microphone.
+
+Point the frontend at the backend with a **rewrite**, not an environment
+variable. Add to `web/vercel.json` above the SPA catch-all:
+
+```json
+{ "source": "/api/:path*", "destination": "https://<service>.onrender.com/api/:path*" }
 ```
 
-**Verify before demoing:**
+The rewrite is a server-to-server hop from Vercel's edge, so there is no
+browser CORS at all and the frontend keeps calling `/api` exactly as it does
+locally. Order matters: the catch-all is written as `/((?!api/).*)` so it
+does not swallow `/api`.
+
+Then:
 
 ```bash
-curl http://127.0.0.1:8000/api/health       # ffmpeg: true, stt configured: true
-curl http://127.0.0.1:8000/api/safety       # disclosures load
+cd web && npx vercel --prod
 ```
 
-The frontend proxies `/api` to `127.0.0.1:8000` in both `dev` and `preview`
-(`vite.config.ts`), so no CORS handling is needed locally. Behind a different
-origin, set `CORS_ORIGINS`.
+### Local
 
-**Startup takes ~10 s.** The lifespan preloads reference profiles and warms
-the JIT paths librosa compiles on first use. Wait for
-`PhonoPlay API 0.1.0 ready` before the first recording — a cold first request
-otherwise costs a second or more.
+```bash
+cd api && python -m venv .venv && .venv/Scripts/pip install -e ".[dev]"
+cp .env.example .env                    # add GROQ_API_KEY
+.venv/Scripts/python -m uvicorn app.main:app --port 8000
 
----
+cd web && npm install && npm run dev    # proxies /api to :8000
+```
+
+**Startup takes ~10 s** in every environment — the lifespan preloads
+reference profiles and warms librosa's JIT paths. Wait for
+`PhonoPlay API 0.1.0 ready` before the first recording.
 
 ## 5. Demo workflow
 
