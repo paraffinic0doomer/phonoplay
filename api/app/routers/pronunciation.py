@@ -78,7 +78,13 @@ async def assess(
         # which should not happen — surfaced rather than swallowed.
         raise AudioError(exc.code, exc.message, http_status=422) from exc
 
-    return PronunciationResponse(**analysis.__dict__)
+    # `segment_info` on the dataclass, `segment` on the wire. Without the
+    # rename the field silently arrived as null: Pydantic ignored the unknown
+    # key and filled the declared one with its default, so every response
+    # claimed no segment was located even when one was.
+    payload = analysis.__dict__ | {"segment": analysis.segment_info}
+    payload.pop("segment_info", None)
+    return PronunciationResponse(**payload)
 
 
 @router.post(

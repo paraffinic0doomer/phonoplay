@@ -246,3 +246,22 @@ def test_mfccs_are_reported_but_do_not_affect_the_score(sank_wav):
     assert len(result.mfcc) == 13
     for candidate in result.candidates:
         assert not any(name.startswith("mfcc") for name in candidate["z_scores"])
+
+
+def test_the_located_segment_reaches_the_wire(sank_wav, settings):
+    """
+    Regression: the analyzer calls it `segment_info` and the schema calls it
+    `segment`. Pydantic ignored the unknown key and defaulted the declared
+    one, so every response reported `segment: null` — the timing evidence was
+    computed on every request and thrown away at the boundary.
+    """
+    import asyncio
+
+    from app.routers.pronunciation import assess
+
+    response = asyncio.run(assess(sank_wav, "s", settings, expected_text="sank"))
+
+    assert response.segment is not None, "the segment was located but not reported"
+    assert response.segment.end_s > response.segment.start_s
+    assert 0.0 < response.segment.salience <= 1.0
+    assert response.segment.method == "frication-run"
