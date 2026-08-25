@@ -59,6 +59,18 @@ async def generate(attempt: dict[str, Any], settings: Settings) -> dict[str, Any
         return base
     evidence = {key: attempt.get(key) for key in ("target_sound", "estimated_match", "similarity_score", "confidence", "mastery", "difficulty")}
     prompt = f"Generate concise educational practice for {target}. Evidence is authoritative but do not score or diagnose. Return JSON only with explanation, words (exactly 3 objects with text,target_ipa,prompt_id,contrast), phrase, challenge, difficulty, encouragement. Use real English words containing the target sound. Never mention disorders or diagnosis. Evidence: {json.dumps(evidence)}"
+    # Two things here were wrong together, and each hid the other.
+    #
+    # groq_chat_model, never groq_model: the latter is Whisper, a
+    # speech-to-text model, and /chat/completions rejects it with a 400 that
+    # the except-block below swallows. The result was that this endpoint
+    # silently returned the hard-coded fallback on every single call.
+    #
+    # And max_tokens must leave room for the reasoning trace gpt-oss-120b
+    # emits before its JSON. At 350 the budget ran out mid-thought and Groq
+    # rejected the request with json_validate_failed and an empty generation.
+    # Measured: ~570-630 completion tokens for this prompt. 1200 matches what
+    # journey/material.py already uses.
     try:
         async with httpx.AsyncClient(timeout=12) as client:
             for key in keys:
@@ -66,7 +78,7 @@ async def generate(attempt: dict[str, Any], settings: Settings) -> dict[str, Any
                     response = await client.post(
                         f"{settings.groq_base_url.rstrip('/')}/chat/completions",
                         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-                        json={"model": settings.groq_model, "temperature": 0.2, "max_tokens": 350, "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": "You create short pronunciation practice. The acoustic system owns scores. Never provide medical claims."}, {"role": "user", "content": prompt}]},
+                        json={"model": settings.groq_chat_model, "temperature": 0.2, "max_tokens": 1200, "response_format": {"type": "json_object"}, "messages": [{"role": "system", "content": "You create short pronunciation practice. The acoustic system owns scores. Never provide medical claims."}, {"role": "user", "content": prompt}]},
                     )
                     response.raise_for_status()
                     body = response.json()

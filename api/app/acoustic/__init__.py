@@ -12,6 +12,11 @@ Public surface:
     warmup()                    -> preload the reference set and JIT paths
 """
 
+from .analyzer import (
+    STATUS_ASSESSED,
+    STATUS_UNCERTAIN,
+    STATUS_UNUSABLE,
+)
 from .analyzer import PronunciationAnalysis, analyze, warmup
 from .phonemes import TARGETS
 from .preprocess import SignalError

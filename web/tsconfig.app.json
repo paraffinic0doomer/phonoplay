@@ -22,5 +22,10 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+
+  /* Tests run on Node and need its types; application code must not see
+     them, or browser source could reach for `process` or `Buffer` and only
+     fail at runtime. Tests are typechecked by tsconfig.test.json instead. */
+  "exclude": ["src/**/*.test.ts"]
 }

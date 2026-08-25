@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { AudioRecorder, RecorderError, validateClip } from '../lib/recorder'
 import type { RecordingClip } from '../lib/recorder'
+import { useCapture } from '../state/useCapture'
 import {
   JourneyError,
   fetchJourney,
@@ -65,17 +65,36 @@ export function Journey() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [switching, setSwitching] = useState(false)
 
-  const recorder = useRef<AudioRecorder | null>(null)
-  // Set while a request is in flight so an unmount cannot write state.
+  // Set while a request is in flight so an unmount cannot write state. The
+  // recorder has its own equivalent inside useCapture; this one covers the
+  // journey and material fetches.
   const alive = useRef(true)
 
   useEffect(() => {
     alive.current = true
     return () => {
       alive.current = false
-      recorder.current?.cancel()
     }
   }, [])
+
+  // The same device owner Practice uses. Journey keeps its status locally
+  // rather than in the session reducer, so the hook reports transitions here.
+  const { recorderRef: recorder, start: handleStart, stop: handleStop } = useCapture({
+    onPermissionRequest: () => {
+      setError(null)
+      setResult(null)
+      setStatus('requesting-permission')
+    },
+    onRecordingStart: () => setStatus('recording'),
+    onClip: (recorded) => {
+      setClip(recorded)
+      setStatus('review')
+    },
+    onError: (failure) => {
+      setError(failure)
+      setStatus('error')
+    },
+  })
 
   const loadMaterial = useCallback(
     async (target: SoundId, avoid?: string | null) => {
@@ -165,69 +184,6 @@ export function Journey() {
       cancelled = true
     }
   }, [soundId, loadMaterial])
-
-  async function handleStart() {
-    setError(null)
-    setResult(null)
-    setStatus('requesting-permission')
-    const active = new AudioRecorder()
-    recorder.current = active
-    active.onRecordingFailure = (failure) => {
-      setError({ code: failure.code, message: failure.message, retryable: true })
-      setStatus('error')
-    }
-
-    try {
-      await active.start()
-      if (!alive.current) {
-        active.cancel()
-        return
-      }
-      setStatus('recording')
-    } catch (cause) {
-      const failure = cause as RecorderError
-      setError({
-        code: failure.code ?? 'RECORDING_FAILED',
-        message: failure.message ?? 'Could not start recording.',
-        retryable:
-          failure.code !== 'MIC_UNSUPPORTED' && failure.code !== 'MIC_INSECURE_CONTEXT',
-      })
-      setStatus('error')
-    }
-  }
-
-  async function handleStop() {
-    const active = recorder.current
-    if (!active) return
-
-    try {
-      const recorded = await active.stop()
-      if (!alive.current) return
-
-      const problem = validateClip(recorded)
-      if (problem) {
-        setError({
-          code: problem === 'silent' ? 'RECORDING_SILENT' : 'RECORDING_EMPTY',
-          message:
-            problem === 'silent'
-              ? 'That recording was silent. Check your microphone and try again.'
-              : problem === 'too-short'
-                ? 'That was too short. Hold the sound a little longer.'
-                : 'That recording could not be used. Try again.',
-          retryable: true,
-        })
-        setStatus('error')
-        return
-      }
-
-      setClip(recorded)
-      setStatus('review')
-    } catch (cause) {
-      const failure = cause as RecorderError
-      setError({ code: failure.code ?? 'RECORDING_FAILED', message: failure.message ?? 'Recording failed.', retryable: true })
-      setStatus('error')
-    }
-  }
 
   async function handleSubmit() {
     if (!clip || !soundId || !material) return

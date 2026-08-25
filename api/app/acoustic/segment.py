@@ -72,7 +72,37 @@ MIN_PEAK_SALIENCE = 0.015
 
 #: An approximant before a vowel is short. Cap the span so the following
 #: vowel does not get averaged into the measurement.
-MAX_APPROXIMANT_S = 0.130
+#:
+#: 80 ms, because an English onset approximant holds its constriction for
+#: roughly 50-90 ms and the reading has to come from the hold, not from the
+#: glide into the vowel.
+#:
+#: This was 130 ms, which is longer than the sound it is trying to bound. The
+#: cost was not subtle: in a word with a long voiced run the window reached
+#: past the constriction into the nucleus, and since a vowel is flatter than
+#: an approximant, the "most stable frame" rule below then took its reading
+#: from the vowel. Measured on "rabbit" - a textbook /r/ with F3 at 1517 Hz -
+#: the reading was taken 80 ms later at F3 2131 Hz and the word came back as
+#: an /l/ substitution. Telling a learner who said it correctly that they
+#: substituted a different sound is the worst answer this stage can give.
+#:
+#: Swept end to end, rebuilding the reference profiles at each value because
+#: reference and learner must be measured the same way:
+#:
+#:     130 ms  418/504   "rabbit" -> /l/, similarity 0.038   (the bug)
+#:     110 ms  418/504   /l/ 0.038
+#:      95 ms  420/504   /r/ 0.894
+#:      90 ms  418/504   /r/ 0.894
+#:      85 ms  422/504   /r/ 0.894
+#:      80 ms  426/504   /r/ 0.897                           (chosen)
+#:      75 ms  422/504   /r/ 0.886
+#:      70 ms  424/504   /r/ 0.907
+#:      60 ms  404/504   /r/ 0.912   - now clipping the hold itself
+#:
+#: 70-95 ms is a plateau rather than a peak, so this is a mid-range choice
+#: inside a flat region, not a value tuned to one recording. It improves the
+#: corpus and fixes the held-out fixture at the same time.
+MAX_APPROXIMANT_S = 0.080
 #: ...and never take more than this share of the voiced run, so a very short
 #: word does not end up measured as all-approximant.
 MAX_APPROXIMANT_RATIO = 0.45

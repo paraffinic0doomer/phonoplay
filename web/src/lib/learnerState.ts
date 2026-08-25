@@ -28,7 +28,12 @@ const bands: Array<[number, RecommendedDifficulty]> = [
 ]
 
 export function learnerState(sound: SoundId, results: AttemptResult[]): LearnerState {
-  const scores = results.map((result) => result.scores.overall)
+  // Only attempts the acoustic stage actually scored. An unassessed result
+  // still carries a similarity number, but folding it into mastery would let
+  // a recording we declined to judge move the learner's level.
+  const scores = results
+    .filter((result) => result.assessed !== false)
+    .map((result) => result.scores.overall)
   const recent = scores.slice(-5)
   const mastery = recent.length ? recent.reduce((sum, score) => sum + score, 0) / recent.length : 0
   const average = recent.length ? mastery : 0

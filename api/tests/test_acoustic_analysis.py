@@ -265,3 +265,170 @@ def test_the_located_segment_reaches_the_wire(sank_wav, settings):
     assert response.segment.end_s > response.segment.start_s
     assert 0.0 < response.segment.salience <= 1.0
     assert response.segment.method == "frication-run"
+
+
+# ── The measurement lands on the sound, not the vowel after it ────────
+
+
+def test_a_correct_r_in_a_longer_word_is_not_called_a_substitution(rabbit_wav):
+    """
+    The failure this guards against is the worst one this stage can produce:
+    telling a learner who said the sound correctly that they substituted a
+    different one.
+
+    "rabbit" carries a textbook /r/ — F3 down at ~1520 Hz — but its voiced run
+    is long enough that the onset window used to overrun the constriction and
+    reach the following vowel. A vowel is flatter than an approximant, so the
+    "most stable frame" rule then took its reading from the vowel, where F3
+    has climbed back to ~2130 Hz, and the word came back as an /l/
+    substitution with similarity 0.038.
+
+    Every word in the reference corpus that exercised this is measured the
+    same way the profiles were built, so the corpus could not see it. This
+    fixture can.
+    """
+    result = analyze(rabbit_wav, "r")
+
+    assert result.estimated_match == "r"
+    assert result.feedback_code == "ON_TARGET"
+    assert result.similarity_score > 0.6
+
+
+def test_an_onset_approximant_is_measured_over_a_constriction_length_window(
+    rabbit_wav, rag_wav
+):
+    """
+    The window has to stay about as long as the sound it is bounding.
+
+    English onset approximants hold for roughly 50-90 ms. A window longer than
+    that stops being a measurement of the approximant and starts averaging in
+    whatever follows it.
+    """
+    for audio in (rabbit_wav, rag_wav):
+        located = analyze(audio, "r").segment_info
+        assert located is not None
+        assert located["duration_s"] <= 0.09, located
+
+
+def test_the_r_reading_shows_the_lowered_f3_that_defines_it(rabbit_wav, rag_wav):
+    """
+    F3 lowering is *the* acoustic cue for English /r/, so it is the thing to
+    assert on. Checking the feature rather than the verdict means this fails
+    if the measurement drifts back into the vowel even should the classifier
+    happen to still land on /r/.
+    """
+    for audio in (rabbit_wav, rag_wav):
+        features = analyze(audio, "r").acoustic_features
+        # Well below the speaker's own neutral F3 — that ratio is what the
+        # profile actually compares, so it is what the test checks.
+        assert features["f3_over_speaker_f3"] < 0.85, features
+
+
+def test_a_w_in_a_longer_word_is_still_not_accepted_as_r(wag_wav):
+    """The window change must not have bought accuracy by getting looser."""
+    result = analyze(wag_wav, "r")
+
+    assert result.estimated_match != "r"
+    assert result.similarity_score < 0.2
+
+
+# ── The one field a caller can branch on ──────────────────────────────
+
+
+def test_status_says_assessed_when_a_phoneme_was_named(sank_wav):
+    result = analyze(sank_wav, "s")
+
+    assert result.status == "assessed"
+    assert result.assessed is True
+    assert result.estimated_match is not None
+
+
+@pytest.mark.parametrize(
+    "fixture",
+    ["silence_wav", "white_noise_wav", "room_noise_wav", "noisy_speech_wav", "clipped_wav"],
+)
+def test_status_says_unusable_when_the_recording_could_not_support_a_verdict(
+    request, fixture
+):
+    result = analyze(request.getfixturevalue(fixture), "s")
+
+    assert result.status == "unusable_audio"
+    assert result.estimated_match is None
+
+
+def test_status_separates_weak_evidence_from_unusable_audio(monkeypatch, sank_wav):
+    """
+    The distinction the product depends on.
+
+    A recording that could not be analysed at all and a recording that was
+    analysed but did not produce strong enough evidence are different things
+    to tell a learner: one asks them to record again somewhere quieter, the
+    other says the sound was heard but could not be placed. Collapsing them
+    into "failed" loses the difference.
+    """
+    monkeypatch.setattr("app.acoustic.scoring.CONFIDENCE_FLOOR", 1.01)
+    result = analyze(sank_wav, "s")
+
+    assert result.status == "insufficient_confidence"
+    assert result.assessed is False
+    # Not forced into a classification, which is the whole point.
+    assert result.estimated_match is None
+    # The audio itself was fine, so this is not an audio-quality refusal.
+    assert result.feedback_code == UNABLE_TO_ASSESS
+
+
+def test_status_never_disagrees_with_the_fields_it_summarises(
+    sank_wav, thank_wav, rag_wav, silence_wav
+):
+    """`status` is derived, so it cannot drift away from what it reports."""
+    cases = [(sank_wav, "s"), (thank_wav, "s"), (rag_wav, "r"), (silence_wav, "s")]
+    for audio, target in cases:
+        result = analyze(audio, target)
+        assert result.status in {"assessed", "insufficient_confidence", "unusable_audio"}
+        assert (result.status == "assessed") is (result.estimated_match is not None)
+        assert (result.status == "assessed") is result.assessed
+
+
+def test_an_uncertain_result_still_reports_what_it_measured(monkeypatch, sank_wav):
+    """
+    Uncertainty hides the verdict, not the evidence.
+
+    An uncertain result keeps its real similarity and confidence numbers —
+    they are what the caller needs in order to understand *why* no sound was
+    named, and suppressing them would be its own kind of dishonesty. What it
+    withholds is the classification.
+
+    This is different from a refusal, where nothing was compared at all and
+    both numbers are a true zero. `status` is what separates the two, which is
+    why the UI must branch on it rather than on the score.
+    """
+    monkeypatch.setattr("app.acoustic.scoring.CONFIDENCE_FLOOR", 1.01)
+    result = analyze(sank_wav, "s")
+
+    assert result.status == "insufficient_confidence"
+    assert result.estimated_match is None
+    # The measurement happened, so it is reported.
+    assert result.similarity_score > 0.0
+    assert result.acoustic_features
+
+
+def test_a_refusal_and_an_uncertain_result_are_distinguishable(
+    monkeypatch, sank_wav, silence_wav
+):
+    """
+    Both decline to name a sound; only one of them measured anything.
+
+    A caller that cannot tell them apart will either render a score for a
+    recording nothing was measured from, or hide evidence that exists.
+    """
+    refused = analyze(silence_wav, "s")
+    assert refused.status == "unusable_audio"
+    assert refused.similarity_score == 0.0
+    assert refused.confidence == 0.0
+
+    monkeypatch.setattr("app.acoustic.scoring.CONFIDENCE_FLOOR", 1.01)
+    uncertain = analyze(sank_wav, "s")
+    assert uncertain.status == "insufficient_confidence"
+    assert uncertain.similarity_score > 0.0
+
+    assert refused.status != uncertain.status

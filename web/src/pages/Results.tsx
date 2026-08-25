@@ -46,14 +46,22 @@ export function Results() {
   const { result } = attempt
   const sound = result.prompt.target_sound
   const profile = SOUND_PROFILES[sound]
+  // Absent means an attempt stored before the flag existed, and those were
+  // all assessed — so absence defaults to true rather than hiding a real score.
+  const assessed = result.assessed !== false
   const history = attemptsForSound(sound)
   const attemptNumber = history.findIndex((entry) => entry.id === attempt.id) + 1
 
-  const graphPoints = history.map((entry, index) => ({
-    attempt: index + 1,
-    score: Math.round(entry.result.scores.overall),
-    word: entry.promptText,
-  }))
+  // Unassessed attempts are left out of the trend line entirely. Plotting the
+  // similarity of a recording we declined to score would draw a data point
+  // the measurement never supported.
+  const graphPoints = history
+    .filter((entry) => entry.result.assessed !== false)
+    .map((entry, index) => ({
+      attempt: index + 1,
+      score: Math.round(entry.result.scores.overall),
+      word: entry.promptText,
+    }))
 
   const practise = (promptId: string | null) => {
     const query = promptId ? `?prompt=${encodeURIComponent(promptId)}` : ''
@@ -92,20 +100,41 @@ export function Results() {
       <section className="panel mt-6 flex flex-col items-center gap-8 p-6 sm:p-8 lg:flex-row lg:items-start">
         {/* "match to /S/" rather than a bare "similarity": it names the
             sound the number is measured against, so it cannot be read as an
-            overall grade for the attempt. */}
-        <ScoreDial
-          value={result.scores.overall}
-          label="match"
-          sublabel={`to ${profile.display}`}
-        />
+            overall grade for the attempt.
+
+            Not shown at all when the stage declined to name a sound. The
+            number behind the dial is a real similarity measurement, but a
+            large percentage next to "Unable to confidently assess this
+            attempt" reads as a score, and inventing that certainty is the one
+            thing this product must not do. */}
+        {assessed ? (
+          <ScoreDial
+            value={result.scores.overall}
+            label="match"
+            sublabel={`to ${profile.display}`}
+          />
+        ) : (
+          <div
+            className="flex size-40 shrink-0 items-center justify-center rounded-full border-4 border-dashed border-line text-center"
+            aria-label="No score: this recording could not be confidently assessed"
+          >
+            <span className="label-mono px-4 leading-relaxed text-ink-faint">
+              Not enough
+              <br />
+              to score
+            </span>
+          </div>
+        )}
 
         <div className="min-w-0 flex-1">
           <h2 className="text-xl font-semibold text-ink">
-            {result.scores.overall >= 85
-              ? 'That one landed.'
-              : result.scores.overall >= 70
-                ? 'Close — the target sound needs a little work.'
-                : 'The target sound came out differently.'}
+            {!assessed
+              ? 'We could not place that one.'
+              : result.scores.overall >= 85
+                ? 'That one landed.'
+                : result.scores.overall >= 70
+                  ? 'Close — the target sound needs a little work.'
+                  : 'The target sound came out differently.'}
           </h2>
           <p className="mt-2 text-[0.95rem] leading-relaxed text-ink-soft">
             {result.deviation.explanation}
@@ -114,7 +143,7 @@ export function Results() {
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
             <Stat
               label="Target sound"
-              value={`${Math.round(result.scores.target_sound)}%`}
+              value={assessed ? `${Math.round(result.scores.target_sound)}%` : "—"}
               hint={`how close this came to ${profile.display}`}
             />
             {/* Word accuracy is a transcription measure, and the attempt

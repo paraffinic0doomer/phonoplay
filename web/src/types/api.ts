@@ -155,6 +155,18 @@ export interface AttemptResult {
   acoustic_features: AcousticFeatures
   deviation: Deviation
   scores: Scores
+  /**
+   * Whether the acoustic stage actually named a sound.
+   *
+   * False means it measured the recording but declined to say what was
+   * produced. `scores` still holds a real similarity to the target profile,
+   * but presenting it as a verdict would supply the certainty the analysis
+   * deliberately withheld. Branch on this before rendering a score.
+   *
+   * Optional because a stored attempt from before the field existed will not
+   * have it; absent is treated as assessed, which is what those attempts were.
+   */
+  assessed?: boolean
   timings_ms: AttemptTimings
   /**
    * Frontend-only marker. True when this result came from a development

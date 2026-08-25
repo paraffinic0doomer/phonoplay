@@ -119,7 +119,9 @@ export function Progress() {
     )
   }
 
-  const allScores = state.attempts.map((attempt) => attempt.result.scores.overall)
+  const allScores = state.attempts
+    .filter((attempt) => attempt.result.assessed !== false)
+    .map((attempt) => attempt.result.scores.overall)
   const best = Math.round(Math.max(...allScores))
 
   return (

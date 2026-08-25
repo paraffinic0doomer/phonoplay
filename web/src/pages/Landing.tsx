@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { SOUND_LIST } from '../data/sounds'
 import type { SoundId } from '../types/api'
@@ -81,6 +81,34 @@ export function Landing() {
 
   const hasHistory = state.attempts.length > 0
 
+  /*
+   * A learner who has not been through onboarding starts there; everyone else
+   * goes straight to practice. The button copy does not change — the flow
+   * behind it does — because "Start a Sound Lab" is the promise either way.
+   *
+   * Defaults to /sounds while the check is in flight, so a slow IndexedDB
+   * read can never leave the primary call to action pointing at nothing.
+   */
+  const [startHref, setStartHref] = useState('/sounds')
+  useEffect(() => {
+    let cancelled = false
+    // Imported dynamically so Dexie stays out of the landing page's critical
+    // path. Statically importing it moved the first-paint bundle from 108 kB
+    // to 146 kB gzipped for a check that only decides where one link points.
+    void import('../db')
+      .then(({ hasOnboarded }) => hasOnboarded())
+      .then((done) => {
+        if (!cancelled) setStartHref(done ? '/sounds' : '/onboarding')
+      })
+      .catch(() => {
+        // Storage unavailable (private mode, blocked site data). The default
+        // stands and practice still works — there is nothing to sign into.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   return (
     <div style={{ '--sound': accent } as CSSProperties}>
       {/* ── Hero ─────────────────────────────────────────────── */}
@@ -124,7 +152,7 @@ export function Landing() {
             </p>
 
             <div className="mt-9 flex flex-wrap items-center gap-3">
-              <ButtonLink to="/sounds" size="lg">
+              <ButtonLink to={startHref} size="lg">
                 Start a Sound Lab
               </ButtonLink>
               {hasHistory && (
@@ -334,7 +362,7 @@ export function Landing() {
           <p className="max-w-md text-ink-soft">
             That is the whole first step. The lab does the rest.
           </p>
-          <ButtonLink to="/sounds" size="lg">
+          <ButtonLink to={startHref} size="lg">
             Start a Sound Lab
           </ButtonLink>
         </div>

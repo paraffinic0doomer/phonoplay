@@ -38,6 +38,16 @@ from .quality import QualityReport, assess
 
 log = logging.getLogger(__name__)
 
+#: A phoneme was named, with evidence behind it.
+STATUS_ASSESSED = "assessed"
+#: Usable audio, but the evidence did not support naming a phoneme. This is a
+#: real answer, not a failure - forcing a classification here is exactly what
+#: this stage must not do.
+STATUS_UNCERTAIN = "insufficient_confidence"
+#: The recording itself could not support a verdict: silence, noise, clipping,
+#: nothing locatable.
+STATUS_UNUSABLE = "unusable_audio"
+
 
 @dataclass(frozen=True)
 class PronunciationAnalysis:
@@ -60,6 +70,17 @@ class PronunciationAnalysis:
     confidence: float
     acoustic_features: dict[str, float]
     feedback_code: str
+    #: One word for what happened, for callers that only need to branch.
+    #:
+    #: ``assessed``                a phoneme was named
+    #: ``insufficient_confidence`` the recording was usable, the evidence was
+    #:                             not strong enough to name one
+    #: ``unusable_audio``          the recording could not support any verdict
+    #:
+    #: This says the same thing as ``assessed`` plus ``feedback_code``, in a
+    #: single field. It is derived from them, never set independently, so the
+    #: two can never disagree.
+    status: str = STATUS_UNUSABLE
 
     #: Everything below is evidence, not verdict.
     target_ipa: str = ""
@@ -204,6 +225,11 @@ def analyze(
         cue=message.cue,
         hint=message.hint,
         assessed=result.estimated_match is not None,
+        status=(
+            STATUS_ASSESSED
+            if result.estimated_match is not None
+            else STATUS_UNCERTAIN
+        ),
         candidates=[
             {
                 "phoneme": c.phoneme,

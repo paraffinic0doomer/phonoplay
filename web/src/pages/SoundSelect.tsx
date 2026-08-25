@@ -99,7 +99,7 @@ export function SoundSelect() {
                     one prompt, the journey adapts across seven stages and
                     remembers where you got to. */}
                 <Link
-                  to={`/journey/${profile.id}`}
+                  to={`/practice/${profile.id}`}
                   onClick={() => selectSound(profile.id)}
                   className="label-mono mt-2 inline-block text-ink-faint underline underline-offset-2 hover:text-ink"
                   style={{ '--sound': profile.color } as CSSProperties}

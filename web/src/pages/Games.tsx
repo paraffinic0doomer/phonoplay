@@ -42,7 +42,9 @@ export function Games() {
   const newAttempts = Math.max(0, state.attempts.length - startedWith)
   const huntWords = useMemo(() => HUNT_WORDS[sound], [sound])
   const sprintResults = state.attempts.slice(startedWith).filter((attempt) => attempt.targetSound === sound)
-  const sprintScores = sprintResults.map((attempt) => attempt.result.scores.overall)
+  const sprintScores = sprintResults
+    .filter((attempt) => attempt.result.assessed !== false)
+    .map((attempt) => attempt.result.scores.overall)
   const sprintAccuracy = sprintScores.length ? Math.round(sprintScores.reduce((sum, score) => sum + score, 0) / sprintScores.length) : 0
   const sprintConsistency = sprintScores.length > 1
     ? Math.max(0, Math.round(100 - Math.sqrt(sprintScores.reduce((sum, score) => sum + (score - sprintAccuracy) ** 2, 0) / sprintScores.length)))

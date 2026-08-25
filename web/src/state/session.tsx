@@ -387,8 +387,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'uploading' })
     try {
       // The two stages run independently and are kept independent.
-      // Stage 1 (transcription) is real; stage 2 (scoring) is still a
-      // labelled fixture. Neither one's failure invalidates the other.
+      //
+      // Stage 1 (transcription) answers "which word was attempted"; stage 2
+      // (acoustic analysis) answers "how was it produced". Only the second is
+      // pronunciation evidence.
+      //
+      // `Promise.all` is safe here only because `transcribe` resolves to null
+      // on every failure rather than rejecting - see lib/api.ts. That is what
+      // keeps a Groq outage from destroying a good acoustic result. If
+      // `transcribe` is ever changed to throw, this must become allSettled.
       const [result, transcription] = await Promise.all([
         submitAttempt({
           clip,

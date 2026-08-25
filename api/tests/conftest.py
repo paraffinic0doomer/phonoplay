@@ -104,6 +104,20 @@ def rag_wav() -> bytes:
 
 
 @pytest.fixture(scope="session")
+def rabbit_wav() -> bytes:
+    """
+    A correct /r/ in a two-syllable word - "rabbit".
+
+    Held out from the reference corpus words used by the other fixtures, and
+    the only spoken fixture whose voiced run is long enough for the onset
+    window to run past the constriction into the following vowel. That is the
+    condition that produced a false /l/ substitution on a correct production;
+    see MAX_APPROXIMANT_S in acoustic/segment.py.
+    """
+    return _fixture_bytes("speech_rabbit.wav")
+
+
+@pytest.fixture(scope="session")
 def wag_wav() -> bytes:
     """"wag" — an /r/ produced as /w/, the dominant English pattern."""
     return _fixture_bytes("speech_wag.wav")

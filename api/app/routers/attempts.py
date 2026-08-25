@@ -173,6 +173,13 @@ async def create_attempt(
         "phoneme_timeline": [],
         "acoustic_features": analysis.acoustic_features,
         "deviation": _deviation(analysis, target_ipa),
+        # Whether a phoneme was actually named. A caller must branch on this
+        # before rendering `scores` as a result: the numbers below are a real
+        # measurement of similarity to the target profile, but when this is
+        # false the stage declined to say what was produced, and a bare
+        # percentage presented as a verdict would invent the certainty the
+        # analysis explicitly withheld.
+        "assessed": analysis.assessed,
         "scores": {
             "overall": target_score,
             "target_sound": target_score,

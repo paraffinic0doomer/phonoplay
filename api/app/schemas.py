@@ -177,6 +177,12 @@ class PronunciationResponse(BaseModel):
     confidence: float
     acoustic_features: dict[str, float] = Field(default_factory=dict)
     feedback_code: str
+    #: "assessed" | "insufficient_confidence" | "unusable_audio".
+    #:
+    #: The one field to branch on. "insufficient_confidence" is a real answer
+    #: — the recording was fine but the evidence did not support naming a
+    #: phoneme — and must not be rendered as a low score.
+    status: str = "unusable_audio"
 
     message: str
     #: The specific reason behind a failure headline. `message` stays fixed

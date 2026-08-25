@@ -306,3 +306,54 @@ def test_mock_transport_is_wired_correctly():
         transport=httpx.MockTransport(lambda r: httpx.Response(200, json={"text": "ok"})),
     )
     assert provider.name == "groq"
+
+
+def test_an_attempt_reports_whether_a_sound_was_actually_named(
+    client, monkeypatch, lace_wav
+):
+    """
+    `scores.overall` is a real similarity measurement and stays populated even
+    when the stage declines to name a sound — the number is not a lie, it just
+    is not a verdict. `assessed` is what tells a caller which of the two it is
+    holding.
+
+    Without it the response contradicts itself: `deviation.type` reads
+    "inconclusive" and the explanation says "Unable to confidently assess this
+    attempt", while `scores.overall` sits there at 86.9 waiting for a UI to
+    render it as a percentage.
+    """
+    request = {
+        "files": {"audio": ("a.wav", lace_wav, "audio/wav")},
+        "data": {"prompt_id": "l_word_lion", "session_id": "assessed-flag"},
+    }
+
+    assessed = client.post("/api/attempts", **request).json()
+    assert assessed["assessed"] is True
+    assert assessed["deviation"]["type"] != "inconclusive"
+
+    # Raise the floor past anything a recording can reach: same audio, same
+    # measurement, no verdict.
+    monkeypatch.setattr("app.acoustic.scoring.CONFIDENCE_FLOOR", 1.01)
+    uncertain = client.post("/api/attempts", **request).json()
+
+    assert uncertain["assessed"] is False
+    assert uncertain["deviation"]["type"] == "inconclusive"
+    assert uncertain["deviation"]["to"] is None
+    # The measurement is still reported; only the verdict is withheld.
+    assert uncertain["scores"]["target_sound"] > 0
+
+
+def test_an_unassessed_attempt_stays_out_of_the_progress_series(
+    client, monkeypatch, lace_wav
+):
+    """A recording we declined to score must not become a point on a graph."""
+    monkeypatch.setattr("app.acoustic.scoring.CONFIDENCE_FLOOR", 1.01)
+    client.post(
+        "/api/attempts",
+        files={"audio": ("a.wav", lace_wav, "audio/wav")},
+        data={"prompt_id": "l_word_lion", "session_id": "no-series"},
+    )
+
+    series = client.get("/api/progress", params={"session_id": "no-series"}).json()
+    points = series.get("points") or series.get("series") or []
+    assert points == [], points

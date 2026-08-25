@@ -28,6 +28,7 @@ from .base import (
 from .languages import to_iso_639_1
 from .errors import (
     SttAuthError,
+    SttError,
     SttBadResponse,
     SttInvalidAudio,
     SttNotConfigured,
@@ -182,7 +183,14 @@ class GroqSpeechToText(SpeechToTextProvider):
         )
 
     def _normalize(self, response: httpx.Response, latency_ms: int) -> Transcription:
-        """Map Groq's verbose_json onto our provider-neutral shape."""
+        """
+        Map Groq's verbose_json onto our provider-neutral shape.
+
+        Written defensively. A 200 with a malformed body is still a provider
+        failure, and it must arrive as SttBadResponse rather than escaping as
+        an AttributeError - which would surface to the learner as a 500 with
+        no error code the frontend can act on.
+        """
         try:
             body = response.json()
         except ValueError as exc:
@@ -191,7 +199,30 @@ class GroqSpeechToText(SpeechToTextProvider):
         if not isinstance(body, dict):
             raise SttBadResponse("The transcription service returned an unexpected shape.")
 
-        transcript = (body.get("text") or "").strip()
+        try:
+            return self._build(body, latency_ms)
+        except SttError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - deliberate catch-all
+            # Any shape we did not anticipate. Better a classified provider
+            # error than a 500, and far better than a half-built transcript.
+            log.warning("groq response could not be normalized: %s", exc)
+            raise SttBadResponse(
+                "The transcription service returned a response we could not read."
+            ) from exc
+
+    def _build(self, body: dict[str, Any], latency_ms: int) -> Transcription:
+        raw_text = body.get("text")
+        if raw_text is None:
+            transcript = ""
+        elif isinstance(raw_text, str):
+            transcript = raw_text.strip()
+        else:
+            # Never coerce. str(["a"]) would invent the transcript "['a']",
+            # and a fabricated transcript is worse than a reported failure.
+            raise SttBadResponse(
+                "The transcription service returned a non-text transcript."
+            )
 
         # Word timings arrive as a flat top-level list. Fold them into the
         # segment whose time range contains them so callers get one structure.
@@ -213,7 +244,7 @@ class GroqSpeechToText(SpeechToTextProvider):
             end = _as_float(raw.get("end")) or start
             segments.append(
                 Segment(
-                    id=int(raw.get("id", index)),
+                    id=_as_index(raw.get("id"), index),
                     start=start,
                     end=end,
                     text=str(raw.get("text", "")).strip(),
@@ -243,7 +274,8 @@ class GroqSpeechToText(SpeechToTextProvider):
                 )
             ]
 
-        language = body.get("language") or None
+        raw_language = body.get("language")
+        language = raw_language if isinstance(raw_language, str) and raw_language else None
         return Transcription(
             transcript=transcript,
             language=language,
@@ -254,6 +286,14 @@ class GroqSpeechToText(SpeechToTextProvider):
                 name=self.name, model=self._model, latency_ms=latency_ms
             ),
         )
+
+
+def _as_index(value: Any, fallback: int) -> int:
+    """Segment ids are ordinals. A malformed one is not worth failing over."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return fallback
 
 
 def _as_float(value: Any) -> float | None:

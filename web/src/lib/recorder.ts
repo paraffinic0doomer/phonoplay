@@ -73,6 +73,38 @@ export interface RecordingClip {
 
 export type ClipProblem = 'empty' | 'too-short' | 'silent' | 'too-long'
 
+/**
+ * What to tell the learner about an unusable clip.
+ *
+ * Lives here, next to `validateClip`, because Practice and Journey both need
+ * it and had drifted into two different sets of wording and codes — including
+ * a "too long" message reported under the code `AUDIO_TOO_SHORT`.
+ *
+ * The messages say what to do next, not what went wrong internally.
+ */
+export const CLIP_PROBLEM: Record<
+  ClipProblem,
+  { code: string; message: string }
+> = {
+  empty: {
+    code: 'RECORDING_EMPTY',
+    message: 'That recording came out empty. Try pressing record again.',
+  },
+  'too-short': {
+    code: 'RECORDING_TOO_SHORT',
+    message: 'That was too short to hear. Hold the sound a moment longer.',
+  },
+  silent: {
+    code: 'RECORDING_SILENT',
+    message:
+      'That recording was almost silent. Check your microphone and move a little closer.',
+  },
+  'too-long': {
+    code: 'RECORDING_TOO_LONG',
+    message: `Recordings stop at ${MAX_CLIP_MS / 1000} seconds. Try a shorter take.`,
+  },
+}
+
 /* ── Capability detection ────────────────────────────────────────────── */
 
 export type SupportLevel = 'ok' | 'unsupported' | 'insecure-context'
@@ -457,6 +489,68 @@ export function validateClip(clip: RecordingClip): ClipProblem | null {
   if (clip.peak < SILENCE_PEAK_THRESHOLD) return 'silent'
   if (clip.durationS > MAX_CLIP_MS / 1000 + 1) return 'too-long'
   return null
+}
+
+/**
+ * Watches the microphone permission for changes, without prompting.
+ *
+ * Worth subscribing to rather than reading once: a learner who hits the
+ * denied screen usually fixes it in the browser's own site settings, and that
+ * fires `change` here. Without this they would sit on a dead screen until
+ * they thought to reload.
+ *
+ * Returns an unsubscribe function. On browsers with no microphone permission
+ * descriptor (Firefox) it reports once and then does nothing, which is
+ * correct — there is no state to observe.
+ */
+export function watchMicPermission(
+  onChange: (permission: MicPermission) => void,
+): () => void {
+  let cancelled = false
+  /** Set once the subscription is live, so it can be detached again. */
+  let detach: (() => void) | null = null
+
+  const emit = (permission: MicPermission) => {
+    if (!cancelled) onChange(permission)
+  }
+
+  const unsubscribe = () => {
+    cancelled = true
+    detach?.()
+    detach = null
+  }
+
+  if (!isRecordingSupported()) {
+    emit('unavailable')
+    return unsubscribe
+  }
+
+  if (!navigator.permissions?.query) {
+    emit('unknown')
+    return unsubscribe
+  }
+
+  navigator.permissions
+    .query({ name: 'microphone' as PermissionName })
+    .then((status) => {
+      const read = () =>
+        emit(
+          status.state === 'granted'
+            ? 'granted'
+            : status.state === 'denied'
+              ? 'denied'
+              : 'unknown',
+        )
+      // The query can resolve after the caller unsubscribed; attaching then
+      // would leak a listener onto a long-lived PermissionStatus object.
+      if (cancelled) return
+      read()
+      status.addEventListener('change', read)
+      detach = () => status.removeEventListener('change', read)
+    })
+    .catch(() => emit('unknown'))
+
+  return unsubscribe
 }
 
 /** Reads the current microphone permission without prompting. */

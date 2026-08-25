@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "built": "2026-08-24",
+  "built": "2026-08-26",
   "sample_rate": 16000,
   "provenance": {
     "method": "synthesised reference corpus, measured through the production analysis path",
@@ -467,9 +467,9 @@
           "n": 36
         },
         "release_flux": {
-          "mean": 0.2076,
-          "sd": 0.0867,
-          "measured_sd": 0.0867,
+          "mean": 0.1972,
+          "sd": 0.0921,
+          "measured_sd": 0.0921,
           "weight": 0.9,
           "n": 36
         },
@@ -481,9 +481,9 @@
           "n": 36
         },
         "f2_slope_hz_per_s": {
-          "mean": 3859.9294,
-          "sd": 8513.836,
-          "measured_sd": 8513.836,
+          "mean": -1390.5625,
+          "sd": 15036.9589,
+          "measured_sd": 15036.9589,
           "weight": 0.6,
           "n": 36
         },
@@ -509,9 +509,9 @@
           "n": 36
         },
         "duration_s": {
-          "mean": 0.095,
-          "sd": 0.0371,
-          "measured_sd": 0.0371,
+          "mean": 0.08,
+          "sd": 0.035,
+          "measured_sd": 0.0,
           "weight": 0.3,
           "n": 36
         }
@@ -523,72 +523,72 @@
       "tokens": 35,
       "features": {
         "f3_over_speaker_f3": {
-          "mean": 1.0013,
-          "sd": 0.2727,
-          "measured_sd": 0.2727,
+          "mean": 0.9997,
+          "sd": 0.3271,
+          "measured_sd": 0.3271,
           "weight": 1.4,
           "n": 35
         },
         "f3_minus_f2_hz": {
-          "mean": 1780.1229,
-          "sd": 727.3283,
-          "measured_sd": 727.3283,
+          "mean": 1705.126,
+          "sd": 869.6734,
+          "measured_sd": 869.6734,
           "weight": 1.2,
           "n": 35
         },
         "f2_over_speaker_f3": {
           "mean": 0.3497,
-          "sd": 0.05,
-          "measured_sd": 0.0495,
+          "sd": 0.0514,
+          "measured_sd": 0.0514,
           "weight": 1.0,
           "n": 35
         },
         "release_flux": {
-          "mean": 0.2291,
-          "sd": 0.1136,
-          "measured_sd": 0.1136,
+          "mean": 0.2481,
+          "sd": 0.0686,
+          "measured_sd": 0.0686,
           "weight": 0.9,
           "n": 35
         },
         "mid_dip_db": {
-          "mean": -22.432,
-          "sd": 4.2997,
-          "measured_sd": 4.2997,
+          "mean": -22.4817,
+          "sd": 3.0,
+          "measured_sd": 2.8086,
           "weight": 0.8,
           "n": 35
         },
         "f2_slope_hz_per_s": {
-          "mean": -414.9855,
-          "sd": 6271.4001,
-          "measured_sd": 6271.4001,
+          "mean": -9220.8567,
+          "sd": 13791.1277,
+          "measured_sd": 13791.1277,
           "weight": 0.6,
           "n": 35
         },
         "f3_hz": {
-          "mean": 2810.908,
-          "sd": 534.7096,
-          "measured_sd": 534.7096,
+          "mean": 2718.8374,
+          "sd": 671.2135,
+          "measured_sd": 671.2135,
           "weight": 0.5,
           "n": 35
         },
         "f2_hz": {
-          "mean": 1030.785,
+          "mean": 1016.2495,
           "sd": 250.0,
-          "measured_sd": 148.1509,
+          "measured_sd": 175.5133,
           "weight": 0.4,
           "n": 35
         },
         "f1_hz": {
-          "mean": 316.656,
+          "mean": 304.9428,
           "sd": 120.0,
-          "measured_sd": 38.0655,
+          "measured_sd": 21.803,
           "weight": 0.4,
           "n": 35
         },
         "duration_s": {
-          "mean": 0.09,
-          "sd": 0.0371,
-          "measured_sd": 0.0371,
+          "mean": 0.08,
+          "sd": 0.035,
+          "measured_sd": 0.0,
           "weight": 0.3,
           "n": 35
         }
@@ -602,42 +602,42 @@
         "f3_over_speaker_f3": {
           "mean": 1.0,
           "sd": 0.07,
-          "measured_sd": 0.0486,
+          "measured_sd": 0.0498,
           "weight": 1.4,
           "n": 36
         },
         "f3_minus_f2_hz": {
-          "mean": 1562.2401,
+          "mean": 1559.4179,
           "sd": 250.0,
-          "measured_sd": 202.3676,
+          "measured_sd": 201.4065,
           "weight": 1.2,
           "n": 36
         },
         "f2_over_speaker_f3": {
-          "mean": 0.3156,
+          "mean": 0.3166,
           "sd": 0.05,
-          "measured_sd": 0.0397,
+          "measured_sd": 0.0385,
           "weight": 1.0,
           "n": 36
         },
         "release_flux": {
-          "mean": 0.1898,
-          "sd": 0.0964,
-          "measured_sd": 0.0964,
+          "mean": 0.1883,
+          "sd": 0.0987,
+          "measured_sd": 0.0987,
           "weight": 0.9,
           "n": 36
         },
         "mid_dip_db": {
-          "mean": -20.6614,
-          "sd": 7.1246,
-          "measured_sd": 7.1246,
+          "mean": -19.9933,
+          "sd": 6.5483,
+          "measured_sd": 6.5483,
           "weight": 0.8,
           "n": 36
         },
         "f2_slope_hz_per_s": {
-          "mean": -1129.4715,
-          "sd": 9018.8047,
-          "measured_sd": 9018.8047,
+          "mean": -6700.2552,
+          "sd": 14347.7678,
+          "measured_sd": 14347.7678,
           "weight": 0.6,
           "n": 36
         },
@@ -656,16 +656,16 @@
           "n": 36
         },
         "f1_hz": {
-          "mean": 330.8435,
+          "mean": 329.0375,
           "sd": 120.0,
-          "measured_sd": 33.9537,
+          "measured_sd": 24.5037,
           "weight": 0.4,
           "n": 36
         },
         "duration_s": {
-          "mean": 0.09,
+          "mean": 0.08,
           "sd": 0.035,
-          "measured_sd": 0.0297,
+          "measured_sd": 0.0,
           "weight": 0.3,
           "n": 36
         }

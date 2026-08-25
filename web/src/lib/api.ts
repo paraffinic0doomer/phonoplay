@@ -324,6 +324,64 @@ export function generateExercise(attempt: AttemptResult): Promise<Exercise> {
  * kind of fake signal the rest of this app avoids. Returns null when the
  * service is unavailable, and the UI simply omits the panel.
  */
+/** What POST /api/pronunciation returns. Stage 2 only — never a transcript. */
+export interface PronunciationMeasurement {
+  target_phoneme: string
+  estimated_match: string | null
+  similarity_score: number
+  confidence: number
+  acoustic_features: Record<string, number>
+  feedback_code: string
+  /** "assessed" | "insufficient_confidence" | "unusable_audio". */
+  status: string
+  assessed: boolean
+  message: string
+  hint?: string | null
+}
+
+/**
+ * POST /api/pronunciation — the acoustic measurement, on its own.
+ *
+ * Used by the baseline assessment, which needs to measure an arbitrary word
+ * rather than one from the prompt catalogue, and which has no use for a
+ * transcript. This endpoint takes the target sound and the expected text
+ * directly, so nothing has to be registered in advance.
+ *
+ * No fixture fallback: an assessment that quietly scored itself from canned
+ * data would be worse than one that fails, because the learner would carry
+ * the fabricated profile into everything that follows.
+ */
+export async function measurePronunciation(input: {
+  clip: RecordingClip
+  targetSound: string
+  expectedText: string
+  sessionId?: string
+}): Promise<PronunciationMeasurement> {
+  const { clip } = input
+  const form = new FormData()
+  form.append('audio', clip.blob, `attempt.${clip.extension}`)
+  form.append('target_sound', input.targetSound)
+  form.append('expected_text', input.expectedText)
+  if (input.sessionId) form.append('session_id', input.sessionId)
+  form.append('client_mime_type', clip.mimeType)
+  form.append('client_duration_s', clip.durationS.toFixed(3))
+  form.append('client_sample_rate', String(clip.sampleRate))
+  form.append('client_channels', String(clip.channels))
+  form.append('client_size_bytes', String(clip.sizeBytes))
+
+  const controller = new AbortController()
+  const timer = window.setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS)
+  try {
+    return await request<PronunciationMeasurement>('/pronunciation', {
+      method: 'POST',
+      body: form,
+      signal: controller.signal,
+    })
+  } finally {
+    window.clearTimeout(timer)
+  }
+}
+
 export async function transcribe(input: {
   clip: RecordingClip
   promptId?: string

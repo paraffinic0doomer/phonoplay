@@ -2,15 +2,8 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { SOUND_PROFILES, isSoundId } from '../data/sounds'
 import { useSession } from '../state/session'
-import {
-  AudioRecorder,
-  MAX_CLIP_MS,
-  RecorderError,
-  detectSupport,
-  queryMicPermission,
-  validateClip,
-} from '../lib/recorder'
-import type { ClipProblem } from '../lib/recorder'
+import { useCapture } from '../state/useCapture'
+import { MAX_CLIP_MS } from '../lib/recorder'
 import { Button, ButtonLink } from '../components/Button'
 import { RecordButton, useElapsed } from '../components/RecordButton'
 import type { RecordStatus } from '../components/RecordButton'
@@ -19,14 +12,6 @@ import { WaveField } from '../components/WaveField'
 import { MouthDiagram } from '../components/MouthDiagram'
 import { Stepper } from '../components/Stepper'
 import { ErrorNotice } from '../components/ErrorNotice'
-
-/** A clip the client rejected never reaches the network. */
-const CLIP_PROBLEM_ERROR: Record<ClipProblem, { code: string; message: string }> = {
-  empty: { code: 'RECORDING_EMPTY', message: 'That recording came out empty.' },
-  'too-short': { code: 'AUDIO_TOO_SHORT', message: 'That recording was too short.' },
-  silent: { code: 'RECORDING_SILENT', message: 'That recording was almost silent.' },
-  'too-long': { code: 'AUDIO_TOO_SHORT', message: 'That recording was too long.' },
-}
 
 export function Practice() {
   const { sound } = useParams()
@@ -47,13 +32,21 @@ export function Practice() {
     resetFlow,
   } = useSession()
 
-  const recorderRef = useRef<AudioRecorder | null>(null)
   const [level, setLevel] = useState(0)
   const elapsed = useElapsed(state.status === 'recording')
 
   const valid = isSoundId(sound)
   const requestedPromptId = searchParams.get('prompt')
-  const support = detectSupport()
+
+  // One owner for the device. Journey uses the same hook, so both screens
+  // report identical codes and messages for identical failures.
+  const { recorderRef, start, stop, support } = useCapture({
+    onPermissionRequest: beginPermissionRequest,
+    onRecordingStart: recordingStarted,
+    onClip: clipCaptured,
+    onError: reportError,
+    onPermissionChange: setMicPermission,
+  })
 
   /* Keep session state in step with the URL. */
   useEffect(() => {
@@ -78,14 +71,26 @@ export function Practice() {
     void loadPrompt(sound, { promptId: requestedPromptId ?? undefined })
   }, [valid, sound, requestedPromptId, state.prompt, state.status, loadPrompt, resetFlow])
 
-  /* Read the microphone permission once, without prompting. */
+  /*
+   * Recover a stranded capture state.
+   *
+   * The session reducer outlives this screen, so a status of `recording` or
+   * `requesting-permission` can survive a navigation while the recorder that
+   * backed it cannot. That left the button showing "stop" with nothing behind
+   * it — pressing it did nothing, and there was no way back to `ready`.
+   */
+  const recovered = useRef(false)
   useEffect(() => {
-    if (support !== 'ok') {
-      setMicPermission('unavailable')
-      return
+    // Once, on first mount. A fresh mount never has a live recorder behind
+    // it, so a mid-capture status here is stale by definition. The guard —
+    // rather than an empty dependency list — keeps this from firing during a
+    // real recording, without suppressing the dependency check.
+    if (recovered.current) return
+    recovered.current = true
+    if (state.status === 'recording' || state.status === 'requesting-permission') {
+      resetFlow()
     }
-    void queryMicPermission().then(setMicPermission)
-  }, [support, setMicPermission])
+  }, [state.status, resetFlow])
 
   /* Poll the real input level while recording. */
   useEffect(() => {
@@ -100,76 +105,21 @@ export function Practice() {
     }
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
-  }, [state.status])
+  }, [state.status, recorderRef])
 
-  /* Release the microphone if the learner navigates away mid-recording. */
-  useEffect(() => {
-    return () => recorderRef.current?.cancel()
-  }, [])
-
-  const handleStop = useCallback(async () => {
-    const recorder = recorderRef.current
-    if (!recorder?.isRecording) return
-    try {
-      const clip = await recorder.stop()
-      recorderRef.current = null
-
-      // Gate the clip here. A recording that carries no speech is never sent.
-      const problem = validateClip(clip)
-      if (problem) {
-        const { code, message } = CLIP_PROBLEM_ERROR[problem]
-        reportError({ code, message, retryable: true })
-        return
-      }
-
-      clipCaptured(clip)
-    } catch (cause) {
-      recorderRef.current = null
-      reportError({
-        code: cause instanceof RecorderError ? cause.code : 'RECORDING_FAILED',
-        message: cause instanceof Error ? cause.message : 'Recording failed.',
-        retryable: true,
-      })
-    }
-  }, [clipCaptured, reportError])
+  const handleStop = stop
 
   const handleStart = useCallback(async () => {
     clearError()
-    beginPermissionRequest()
-
-    const recorder = new AudioRecorder()
-    recorderRef.current = recorder
-    // The device can vanish mid-recording; surface that rather than hanging.
-    recorder.onRecordingFailure = (failure) => {
-      recorderRef.current = null
-      reportError({ code: failure.code, message: failure.message, retryable: true })
-    }
-
-    try {
-      await recorder.start()
-      setMicPermission('granted')
-      recordingStarted()
-    } catch (cause) {
-      recorderRef.current = null
-      const code = cause instanceof RecorderError ? cause.code : 'RECORDING_FAILED'
-      if (code === 'MIC_DENIED') setMicPermission('denied')
-      else if (code === 'MIC_UNSUPPORTED' || code === 'MIC_INSECURE_CONTEXT') {
-        setMicPermission('unavailable')
-      }
-      reportError({
-        code,
-        message: cause instanceof Error ? cause.message : 'Recording could not start.',
-        retryable: code !== 'MIC_UNSUPPORTED' && code !== 'MIC_INSECURE_CONTEXT',
-      })
-    }
-  }, [clearError, beginPermissionRequest, setMicPermission, recordingStarted, reportError])
+    await start()
+  }, [clearError, start])
 
   /* Hard cap on clip length. */
   useEffect(() => {
     if (state.status !== 'recording') return
-    const id = window.setTimeout(() => void handleStop(), MAX_CLIP_MS)
+    const id = window.setTimeout(() => void stop(), MAX_CLIP_MS)
     return () => window.clearTimeout(id)
-  }, [state.status, handleStop])
+  }, [state.status, stop])
 
   const handleUpload = useCallback(async () => {
     const stored = await uploadClip()
