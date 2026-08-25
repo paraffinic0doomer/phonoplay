@@ -10,522 +10,386 @@ PhonoPlay is an educational pronunciation practice system. It is **not** a
 medical diagnostic tool and not a replacement for a speech-language
 professional.
 
-> The detailed record of what is already built — measured accuracy figures,
-> feature definitions, scoring maths, safety guarantees — lives in
-> [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) §12–17. This document is the
-> plan; that one is the evidence.
+> This document describes the system as it is built. The detailed record —
+> measured accuracy figures, feature definitions, scoring maths, safety
+> guarantees — lives in [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md).
+> Reference-data limits are in `api/app/acoustic/reference/README.md`.
 
 ---
 
 ## Contents
 
-1. [Current architecture](#1-current-architecture)
-2. [Proposed architecture](#2-proposed-architecture)
-3. [Data flow](#3-data-flow)
-4. [API design](#4-api-design)
-5. [Database design](#5-database-design)
-6. [AI pipeline](#6-ai-pipeline)
-7. [Audio pipeline](#7-audio-pipeline)
-8. [Deployment architecture](#8-deployment-architecture)
-9. [Risks](#9-risks)
-10. [Implementation phases](#10-implementation-phases)
+1. [Shape of the system](#1-shape-of-the-system)
+2. [Frontend](#2-frontend)
+3. [Backend](#3-backend)
+4. [Local persistence](#4-local-persistence)
+5. [The learner model](#5-the-learner-model)
+6. [Data flow](#6-data-flow)
+7. [API](#7-api)
+8. [AI pipeline](#8-ai-pipeline)
+9. [Audio pipeline](#9-audio-pipeline)
+10. [Deployment](#10-deployment)
+11. [Known limits and debt](#11-known-limits-and-debt)
 
 ---
 
-## 1. Current architecture
+## 1. Shape of the system
 
-Findings from reading the source, not from the previous documentation.
-588 backend tests pass; the app is live.
+```
+┌─────────────────────────────────────────────────────────────┐
+│  React SPA (Vercel)                                         │
+│  landing · onboarding · assessment · practice · progress    │
+│                                                             │
+│  IndexedDB (Dexie)  ◄── all learner state lives here        │
+└──────────────────────────┬──────────────────────────────────┘
+                           │ fetch, /api/* rewrite
+                           ▼
+              ┌────────────────────────────────┐
+              │  FastAPI (Render, Docker)      │
+              │  · acoustic analysis (local)   │
+              │  · audio normalisation         │
+              │  · transcription (proxied)     │
+              │  · practice material           │
+              │  STATELESS per learner         │
+              └───────────┬────────────────────┘
+                          ▼  Groq: Whisper + gpt-oss-120b
+```
 
-### 1.1 Stack
+Two properties define everything below.
+
+**The backend holds no learner identity.** There are no accounts, no sign-in,
+and no per-learner rows on the server. A recording is uploaded, measured, and
+the measurement is returned; the server forgets it happened. Every profile,
+attempt, score and stage lives in the browser's IndexedDB.
+
+**Measurement and generation are separated, and the separation is enforced by
+tests.** The acoustic stage produces numbers. The language model produces
+words. There is no path by which generated text becomes a score.
 
 | Layer | Technology |
 |---|---|
 | Frontend | React 19.2, TypeScript 6.0, Vite 8.2, Tailwind 4.3, react-router 7.18 |
+| Persistence | IndexedDB via Dexie 4.4 |
 | Backend | FastAPI, Python 3.12, Pydantic v2, uvicorn |
 | Analysis | numpy, scipy, librosa, praat-parselmouth, soundfile |
 | Audio | ffmpeg / ffprobe (external binaries) |
-| Database | **SQLite** via stdlib `sqlite3` |
 | AI | Groq — Whisper for speech-to-text, `openai/gpt-oss-120b` for text |
-| Lint / test | oxlint, pytest |
+| Lint / test | oxlint, `node --test`, pytest |
 
-**No auth library. No ORM. No state manager** beyond two React contexts.
+No auth library, no ORM, no state manager beyond React context. 640 backend
+tests and 148 frontend tests pass.
 
-### 1.2 Frontend
+---
 
-Eight routes: `/`, `/sounds`, `/practice/:sound`, `/journey/:sound`,
-`/results`, `/progress`, `/games`, `*`.
+## 2. Frontend
 
-State is one 524-line `SessionProvider` (`state/session.tsx`) built on
-`useReducer`, plus a second context. 24 components, all hand-written; no
-component library.
+```
+src/
+  assessment/   the baseline sitting: plan, profile arithmetic, reference audio
+  practice/     practice material and feedback wording
+  db/           IndexedDB — every piece of learner state (see §4)
+  language/     phoneme and language knowledge, first-language pairings
+  lib/          api client, recorder, safety copy, fixtures
+  state/        session context, capture hook
+  components/   hand-written; no component library
+  pages/        one per route
+```
 
-`lib/` holds `api.ts` (the older flow), `journey.ts` (the newer one),
-`recorder.ts` (audio capture), `safety.ts` (disclosure copy),
-`fixtures.ts` (offline fallback), `learnerState.ts` (a local heuristic used
-only by the Progress page).
+### Routes
 
-### 1.3 Backend
+| Path | Screen |
+|---|---|
+| `/` | Landing |
+| `/onboarding` | Five questions, one per screen |
+| `/assessment` | Baseline sitting → pronunciation profile |
+| `/sounds` | Sound selection |
+| `/practice/:sound` | **Practice engine** — the main loop |
+| `/attempt/:sound` | Single-attempt flow, feeds `/results` |
+| `/journey/:sound` | Server-driven stage progression (see §11) |
+| `/results` `/progress` `/games` | Result detail, history, word game |
+
+### Capture
+
+One hook owns the microphone: `state/useCapture.ts`. Permission, start, stop,
+validation, teardown and error mapping live there, so every screen that
+records behaves identically and reports identical codes for identical
+failures. Before it existed, Practice and Journey each had their own copy and
+the two had drifted — one reported a too-long recording under the code
+`AUDIO_TOO_SHORT`, the other reported a too-short one as `RECORDING_EMPTY`.
+
+Audio never reaches persistent storage. A clip is held in memory, uploaded on
+an explicit second action, and dropped. Nothing in IndexedDB can hold a Blob;
+a browser test asserts it.
+
+---
+
+## 3. Backend
 
 ```
 app/
   acoustic/    stage 2 — the pronunciation measurement (13 modules)
   stt/         stage 1 — speech-to-text behind a provider interface
-  journey/     stages, advancement policy, SQLite store, material generation
-  llm/         legacy exercise generation
   audio/       ffmpeg ingest and normalisation
+  journey/     stages, advancement policy, material generation
+  llm/         exercise generation
   routers/     analyze, pronunciation, attempts, exercises, catalog,
                progress, journey, health
   data/        hand-written prompt bank
 ```
 
-### 1.4 API routes (from the live OpenAPI schema)
+`app/stt/` is a provider abstraction: `SpeechToTextProvider` with a Groq
+implementation and a `fake` one for offline use. `groq_provider.py` is the
+only module in the codebase that names Groq for transcription — a test parses
+every file with `ast`, ignores docstrings and comments, and fails if anything
+else reaches past the abstraction.
+
+The API key never leaves the server. It travels as an `Authorization` header,
+never a query string, and is asserted absent from every success payload and
+from all eight error statuses. The browser bundle *does* contain the string
+"Groq" — that is the privacy disclosure naming who receives the audio.
+
+---
+
+## 4. Local persistence
+
+CLAUDE.md rules out Supabase, Postgres, Firebase, MongoDB, authentication and
+user accounts. The application works immediately, with no registration, and
+every learner's data stays on their own device.
+
+`PhonoPlayDB`, schema version 2, eight tables:
+
+| Table | Holds |
+|---|---|
+| `settings` | One row: languages, level, goal, learning mode |
+| `phonemeProfiles` | One row per phoneme — the learner model (§5) |
+| `contrastProfiles` | One row per minimal pair |
+| `syllabi` / `syllabusItems` | Plan and its items |
+| `practiceSessions` / `attempts` | What was practised and how it went |
+| `contrastAttempts` | Individual perception answers |
+
+**No table has a column that can hold audio.** That is structural, not a
+convention.
+
+Everything goes through `src/db/index.ts`. The UI performs no raw IndexedDB
+operations; if a screen needs something the barrel does not export, that is a
+missing service function rather than a reason to reach past the layer.
+
+### Migrations
+
+Version 2 added `contrastProfiles` and the `consistency` field, and renamed
+the first stage (`isolated` → `sound`) and the flat trend (`steady` →
+`stable`). The transform is a named, exported, unit-tested function rather
+than an inline callback: a migration runs once per learner, on data that
+cannot be regenerated, which makes it the worst possible place for an
+untested branch. It is idempotent, backfills `consistency: 0` rather than 1
+(a v1 row carries no evidence of spread), and leaves everything else
+untouched.
+
+---
+
+## 5. The learner model
+
+The half of "your pronunciation writes your syllabus" that does the writing.
+`src/db/phonemes.ts` and `src/db/policy.ts`.
+
+Per phoneme: `masteryScore`, `confidence`, `recentScores`, `consistency`,
+`trend`, `attempts`, `currentStage`, `repetitionCount`, `contrastAccuracy`,
+`lastPracticed`.
+
+Per minimal pair: `attempts`, `correctAttempts`, `accuracy`, `trend`. Pairs
+are tracked separately because a learner can separate /r/ from /w/ reliably
+while still confusing /r/ with /l/, and averaging those into one number per
+sound hides the distinction that decides what to practise.
+
+### What the model refuses to conclude
+
+- **Mastery from one good attempt.** One recording can produce a
+  `masteryScore` of 0.97 — it is the honest estimate from one reading — and
+  it is not mastery. `assessMastery` requires enough attempts, a high enough
+  score, measurements the analyser stood behind, *and* scores that agree with
+  each other. Score and verdict are deliberately separate.
+- **A direction from two data points.** Trend is `new` below three assessed
+  attempts rather than claiming a stability nobody has observed.
+- **Anything from a refused recording.** Silence, noise and clipping update
+  `lastPracticed` and nothing else. A refusal is evidence about the room, not
+  about the learner.
+
+### Trend
+
+A straight line is fitted to the recent scores; its rise gives the direction
+and the scatter left over says whether to believe it. Both halves matter:
+
+- Direction has to come first. Checking spread first calls
+  `0.4 → 0.6 → 0.8` inconsistent, because a learner who is steadily improving
+  has a wide spread *by definition*.
+- Direction has to be trusted second. Comparing the older half of the window
+  against the newer half is fooled by phase — scores alternating 0.2 and 0.9
+  that happen to end high produce a half-mean difference of +0.23 and read as
+  "improving". Somebody who cannot reproduce a sound twice running is not
+  improving.
+
+Measured: genuine ramps leave a residual of 0.00–0.02, oscillations 0.29–0.31.
+The threshold at 0.12 sits in a wide empty gap.
+
+### Modes
+
+Policies are plain data, selected by learning mode, so a product decision can
+change one number rather than hunting through conditionals.
+
+| | Standard | Accessibility |
+|---|---|---|
+| Ladder | sound → word → phrase → sentence | sound → syllable → minimal pair → word → phrase → sentence |
+| Assessed attempts before mastery | 3 | 5 |
+| Minimum consistency | 0.6 | 0.7 |
+| Repetitions before advancing | 3 | 5 |
+| Repetitions before offering help | 8 | 16 |
+| Minimum mastery score | 0.75 | **0.75 — unchanged** |
+
+Accessibility Mode asks for **more evidence** and shows **far more patience**.
+It does not ask for a higher score: raising that bar would mean demanding more
+of the learners the mode exists to support. What is raised is how much
+evidence is needed before the score is believed.
+
+The ladders differ in order, not only in length — Accessibility puts minimal
+pairs *before* whole words, so the contrast is heard before it has to be
+produced inside a word. Switching modes keeps what a learner has earned and
+claims nothing more.
+
+**Nothing moves a learner backwards.** A poor run leaves the stage where it
+is. Being sent down a rung for a bad day is punitive, and CLAUDE.md rules that
+out.
+
+---
+
+## 6. Data flow
+
+### Onboarding → baseline → profile
+
+```
+five questions (first language, target, comfort, reason, mode)
+  → settings written to IndexedDB
+  → baseline assessment
+      Standard:      8 word prompts, two per sound
+      Accessibility: the same 8, reached through listen / repeat /
+                     minimal-pair steps — 22 smaller steps in total
+      each recording → POST /api/pronunciation → real measurement
+      each result    → recordMeasurement() → the learner model
+  → pronunciation profile: a percentage per sound, and a first focus
+```
+
+A sound with no usable recording shows **—**, never 0%. A low-confidence score
+is shown but labelled, and is never chosen as the first focus. If nothing was
+measured confidently, no focus is named at all.
+
+### The practice loop
+
+```
+today's mission → learn → listen → record → analyse → feedback → retry
+  → recordMeasurement() updates mastery, consistency, trend, repetitions
+  → assessStage() decides whether the evidence supports the next rung
+  → continue
+```
+
+### The one-way rule
+
+```
+audio ──► acoustic analysis ──► learner model ──► what to practise next
+                                      │
+                                      ▼
+                                     LLM  ──► exercise text
+                                      │
+                                      ✗ never flows back into a score
+```
+
+The language model reads the learner model and writes content. It never writes
+a measurement.
+
+---
+
+## 7. API
+
+Everything under `/api`. No route carries a learner identity, and no route
+requires authentication, because there is nothing to authenticate.
 
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/api/analyze` | Stage 1: transcription |
-| POST | `/api/pronunciation` | Stage 2: acoustic analysis |
-| POST | `/api/attempts` | Combined record — **in-memory only** |
-| POST | `/api/exercises` | Legacy generator — **broken, see 1.9** |
+| POST | `/api/analyze` | Stage 1 — transcription. Never a score. |
+| POST | `/api/pronunciation` | Stage 2 — acoustic measurement |
+| POST | `/api/attempts` | Combined record for the single-attempt flow |
+| POST | `/api/exercises` | Practice content from the chat model |
 | GET | `/api/sounds`, `/api/prompts`, `/api/prompts/{id}` | Catalogue |
-| GET | `/api/sessions/{id}/progress` | **In-memory only** |
-| GET | `/api/journey/languages`, `/api/journey/stages` | Static definitions |
-| GET/PUT | `/api/journey/{learner}/profile` | First-language choice |
-| GET | `/api/journey/{learner}`, `/api/journey/{learner}/{sound}` | Progress |
-| POST | `/api/journey/{learner}/{sound}/attempt` | Assess and record |
-| POST | `/api/journey/{learner}/{sound}/material` | Generate an exercise |
+| GET | `/api/journey/*`, POST `/api/journey/*` | Server-driven journey (§11) |
 | GET | `/api/health`, `/api/safety` | Readiness, disclosures |
 
-### 1.5 Database
-
-SQLite, three tables:
-
-```sql
-learners (learner_id PK, native_language, updated_at)
-journeys (learner_id, sound, stage, started_at, updated_at, PK(learner_id, sound))
-attempts (id PK, learner_id, sound, stage, outcome, similarity, confidence,
-          estimated_match, feedback_code, prompt_text, decision, created_at)
-```
-
-Deliberately **no column can hold audio or a transcript**; a test asserts the
-exact column set.
-
-### 1.6 Authentication
-
-**None exists.** Identity is an opaque UUID the browser generates and keeps in
-`localStorage` under `phonoplay.learner`. It is never asked for, links to
-nothing, and is not verified server-side — any client can pass any id and read
-that learner's progress. The only `Authorization` headers in the codebase are
-*outbound* to Groq.
-
-This is the single largest gap against the target vision.
-
-### 1.7 Audio
-
-Capture: `MediaRecorder`, format negotiated per browser (WebM/Opus, falling
-back to MP4/AAC for Safari), 8 s cap, 0.35 s floor, silence check, explicit
-review before upload. Server: ffmpeg → 16 kHz mono WAV; one transient temp
-file per request, deleted in `finally`.
-
-### 1.8 AI integrations
-
-Two Groq surfaces, correctly kept separate in config:
-
-- `GROQ_MODEL=whisper-large-v3-turbo` — transcription
-- `GROQ_CHAT_MODEL=openai/gpt-oss-120b` — text generation
-
-`journey/material.py` uses the chat model correctly and is verified working.
-`llm/exercise.py` does not — see below.
-
-### 1.9 Technical debt and broken functionality
-
-**A. `/api/exercises` never reaches the LLM.** `llm/exercise.py:69` sends
-`settings.groq_model` — the *speech-to-text* model — to `/chat/completions`.
-Verified live:
-
-```
-POST /chat/completions  model='whisper-large-v3-turbo'
--> HTTP 400 "does not support chat completions"
-```
-
-Every exception is caught and the hand-written bank returned, so it fails
-silently. **The "personalized AI challenge" on the primary Practice → Results
-flow has never been AI-generated.** The Journey flow is unaffected.
-
-**B. Two parallel systems.** The project contains two complete learner flows
-that do not share state:
-
-| | Practice → Results | Journey |
-|---|---|---|
-| Persistence | module-level dicts | SQLite |
-| Survives restart | no | yes |
-| Exercises | `llm/exercise.py` (broken) | `journey/material.py` (works) |
-| Progression | none | 7-stage policy |
-| Visualisation | rich (dial, timeline, deviation card) | minimal |
-
-Each has what the other lacks.
-
-**C. In-memory state.** `SESSION_ATTEMPTS` and `ATTEMPT_RESULTS` are
-module-level dicts. `/api/sessions/{id}/progress` reads from them, so all
-progress on that path is lost on restart — which on Render's free plan
-happens after 15 minutes idle.
-
-**D. Only four phonemes.** `/s/, /r/, /l/, /th/`, each with a small candidate
-set. A "syllabus" over four sounds is thin (see [Risks](#9-risks)).
-
-**E. Minor.** `learnerState.ts` duplicates server-side logic client-side;
-`/games` is a self-contained word game unconnected to the analysis;
-10 advisory lint warnings.
-
-### 1.10 What is genuinely strong
-
-Worth preserving rather than rewriting:
-
-- The acoustic stage is real measurement, not an LLM asked to rate audio.
-  Held-out: `/s/` 36/36 with `/θ/` never accepted as `/s/`; `/r/` 36/36 with
-  `/w/` never accepted as `/r/`.
-- It **refuses to score** when the recording cannot support one — silence,
-  noise, clipping all return no number at all.
-- The two stages are architecturally separated and tested to stay that way.
-- Safety and privacy guarantees are asserted by tests, not just documented.
-
----
-
-## 2. Proposed architecture
-
-The vision adds accounts, a baseline assessment, a learner model, and an
-adaptive syllabus. The measurement engine already exists and does not change.
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  React SPA (Vercel)                                         │
-│  onboarding · auth · dashboard · assessment · practice      │
-│  results · syllabus · progress · Sound Lab                  │
-└───────────────┬──────────────────────────┬──────────────────┘
-                │ supabase-js (auth)       │ fetch + JWT
-                ▼                          ▼
-┌───────────────────────────┐  ┌───────────────────────────────┐
-│  Supabase                 │  │  FastAPI (Render, Docker)     │
-│  · Auth (JWT)             │◄─┤  · verifies JWT               │
-│  · Postgres + RLS         │  │  · acoustic analysis (local)  │
-│                           │  │  · learner model update       │
-└───────────────────────────┘  │  · syllabus adaptation        │
-                               └───────┬───────────────────────┘
-                                       │
-                                       ▼  Groq: Whisper + chat
-```
-
-### 2.1 Why Supabase
-
-The target needs authentication *and* a `profiles` table *and* a real
-database. Supabase supplies all three in one service, with a JS client the
-frontend uses directly for sign-up and sign-in. The backend verifies the JWT
-and uses the same Postgres for everything else.
-
-The alternative — hand-rolled JWT auth plus a separately hosted Postgres — is
-two more things to build and operate for no benefit on a short deadline.
-
-### 2.2 What changes, what does not
-
-| Component | Action |
-|---|---|
-| `app/acoustic/` | **Unchanged.** The measurement engine is the asset. |
-| `app/stt/` | Unchanged. |
-| `app/audio/` | Unchanged. |
-| `app/journey/store.py` | Replace SQLite with Postgres; keep the interface |
-| `app/journey/policy.py` | Generalise: per-item mastery, not a 7-stage ladder |
-| `app/journey/material.py` | Reuse for exercise generation |
-| `app/llm/exercise.py` | **Delete** — broken and superseded |
-| `routers/attempts.py`, `progress.py` | **Delete** — in-memory, superseded |
-| **New** `app/learner/` | Phoneme profile: accumulate evidence, compute mastery |
-| **New** `app/syllabus/` | Generate and adapt the syllabus |
-| **New** `app/auth.py` | Verify Supabase JWT, resolve `user_id` |
-
-### 2.3 The learner model
-
-This is the heart of the positioning, and the piece that does not exist today.
-
-A `phoneme_profile` row per `(user, phoneme)` accumulates evidence from every
-acoustic measurement:
-
-```
-attempts_total, attempts_assessed
-mean_similarity, recent_similarity   (exponentially weighted)
-confusion counts                     {"th": 7, "sh": 2}  what it came out as
-mastery        0-1, derived
-status         untested | emerging | developing | secure
-```
-
-**Mastery is computed from measurements only.** No language model contributes
-to it, and there is no path by which generated text can reach it. That is the
-same separation the current codebase already enforces between the two stages,
-extended one level up.
-
----
-
-## 3. Data flow
-
-### 3.1 Onboarding → first syllabus
-
-```
-sign up (Supabase)
-  → profiles row created
-  → pick native + target language
-  → 3-question self-assessment          (goal, confidence, experience)
-  → baseline: ~8 prompts covering /s/ /r/ /l/ /th/
-      each → POST /api/practice/attempt → acoustic analysis
-      each → phoneme_profiles updated
-  → POST /api/syllabus/generate
-      LLM receives the phoneme profile SUMMARY (not audio, not scores it invented)
-      LLM returns ordered syllabus_items
-      code validates every item before it is stored
-  → dashboard
-```
-
-### 3.2 The practice loop
-
-```
-learner opens the next syllabus_item
-  → POST /api/practice/session          (starts practice_sessions row)
-  → record → review → upload
-  → POST /api/practice/attempt
-       ├─ ffmpeg normalise
-       ├─ acoustic analysis        ← the evidence
-       ├─ transcription (parallel) ← context only, never scoring
-       ├─ write practice_attempts
-       ├─ update phoneme_profiles  ← the learner model
-       └─ re-evaluate the syllabus item (mastered? repeat? step back?)
-  → results screen: score, evidence, what changed
-  → if the item's mastery threshold is met → item complete
-  → if several items shift → POST /api/syllabus/adapt
-```
-
-### 3.3 The one-way rule
-
-```
-audio ──► acoustic analysis ──► phoneme_profile ──► syllabus
-                                       │
-                                       ▼
-                                      LLM  ──► exercise text
-                                       │
-                                       ✗ never flows back into a score
-```
-
-The language model reads the learner model and writes content. It never
-writes a measurement. Enforced today by a response schema that forbids
-unexpected fields and rejects numeric ones; the same guard extends to
-syllabus generation.
-
----
-
-## 4. API design
-
-Everything under `/api`. All learner routes require
-`Authorization: Bearer <supabase-jwt>`; `user_id` comes from the token, never
-from the path — which closes the current hole where any client can read any
-learner's data by guessing an id.
-
-### Keep unchanged
-
-```
-POST /api/analyze              stage 1, transcription
-POST /api/pronunciation        stage 2, acoustic measurement
-GET  /api/health  /api/safety
-```
-
-### New
-
-```
-GET   /api/me                          profile + phoneme summary + active syllabus
-PATCH /api/me                          languages, self-assessment
-
-GET   /api/assessment/baseline         the fixed baseline prompt set
-POST  /api/assessment/complete         finalise baseline, seed profiles
-
-GET   /api/syllabus                    active syllabus + items
-POST  /api/syllabus/generate           create from the phoneme profile
-POST  /api/syllabus/adapt              re-order / insert / retire items
-
-POST  /api/practice/session            open a session
-POST  /api/practice/attempt            the main loop — analyse, record, update
-POST  /api/practice/session/{id}/end   close it
-
-GET   /api/progress                    mastery over time, per phoneme
-GET   /api/phonemes                    inventory + this learner's status
-```
-
-### Retire
-
-```
-POST /api/attempts                  in-memory
-POST /api/exercises                 broken
-GET  /api/sessions/{id}/progress    in-memory
-GET  /api/journey/*                 folded into syllabus + practice
-```
-
-**`POST /api/practice/attempt` response** — one object, three separable parts,
-so nothing can be mistaken for something else:
+`POST /api/pronunciation` is what the assessment and practice engine use: it
+takes the target sound and expected text directly, so nothing has to be
+registered in advance.
 
 ```jsonc
 {
-  "analysis":  { /* PronunciationResponse — the measurement */ },
-  "transcription": { /* stage 1, or null; never a score */ },
-  "learner":   { "phoneme": "s", "mastery": 0.62, "delta": +0.08,
-                 "status": "developing" },
-  "syllabus":  { "item_id": "...", "state": "in_progress",
-                 "action": "repeat", "reason": "..." }
+  "target_phoneme": "s",
+  "estimated_match": "s",        // null when the evidence named nothing
+  "similarity_score": 0.9304,
+  "confidence": 0.9886,
+  "acoustic_features": { /* the features that decided it */ },
+  "feedback_code": "ON_TARGET",
+  "status": "assessed",          // | insufficient_confidence | unusable_audio
+  "assessed": true
 }
 ```
 
----
+`status` is the field to branch on. It separates two things that both decline
+to name a sound: audio nothing could be measured from (similarity and
+confidence are a true zero) and audio that *was* measured but did not support
+a verdict (real numbers, no classification). A caller that cannot tell them
+apart will either render a score for a recording nothing was measured from, or
+hide evidence that exists.
 
-## 5. Database design
-
-Postgres via Supabase. Row-level security on every table: a learner reads and
-writes only their own rows.
-
-```sql
--- Supabase auth.users holds credentials. This is the app-side profile.
-profiles (
-  id                uuid PK REFERENCES auth.users(id) ON DELETE CASCADE,
-  display_name      text,                -- optional, never required
-  native_language   text NOT NULL DEFAULT 'en',
-  target_language   text NOT NULL DEFAULT 'en',
-  self_assessment   jsonb,               -- goal, confidence, experience
-  baseline_done_at  timestamptz,
-  created_at        timestamptz NOT NULL DEFAULT now()
-);
-
--- The learner model. One row per (learner, phoneme). Written ONLY from
--- acoustic measurements.
-phoneme_profiles (
-  id                 uuid PK,
-  user_id            uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  phoneme            text NOT NULL,          -- 's' | 'r' | 'l' | 'th'
-  attempts_total     int  NOT NULL DEFAULT 0,
-  attempts_assessed  int  NOT NULL DEFAULT 0,   -- refusals excluded
-  mean_similarity    real,
-  recent_similarity  real,                     -- exponentially weighted
-  mean_confidence    real,
-  confusions         jsonb NOT NULL DEFAULT '{}',  -- {"th": 7, "sh": 2}
-  mastery            real NOT NULL DEFAULT 0,      -- 0-1
-  status             text NOT NULL DEFAULT 'untested',
-  updated_at         timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (user_id, phoneme)
-);
-
-syllabi (
-  id            uuid PK,
-  user_id       uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  version       int  NOT NULL DEFAULT 1,
-  status        text NOT NULL DEFAULT 'active',   -- active | superseded
-  rationale     text,            -- why this syllabus, in plain language
-  generated_by  text NOT NULL,   -- 'llm' | 'fallback'  — always disclosed
-  created_at    timestamptz NOT NULL DEFAULT now()
-);
-
-syllabus_items (
-  id            uuid PK,
-  syllabus_id   uuid NOT NULL REFERENCES syllabi(id) ON DELETE CASCADE,
-  position      int  NOT NULL,
-  phoneme       text NOT NULL,
-  level         text NOT NULL,   -- isolated|syllable|word|phrase|sentence
-  prompt_text   text NOT NULL,   -- what the learner says
-  contrast_text text,            -- minimal-pair counterpart, display only
-  cue           text,
-  state         text NOT NULL DEFAULT 'pending',  -- pending|in_progress|mastered|skipped
-  attempts      int  NOT NULL DEFAULT 0,
-  best_similarity real,
-  UNIQUE (syllabus_id, position)
-);
-
-practice_sessions (
-  id            uuid PK,
-  user_id       uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  syllabus_id   uuid REFERENCES syllabi(id) ON DELETE SET NULL,
-  kind          text NOT NULL DEFAULT 'practice',  -- baseline | practice
-  started_at    timestamptz NOT NULL DEFAULT now(),
-  ended_at      timestamptz
-);
-
--- One row per recording. NO audio column, NO transcript column - the same
--- guarantee the current schema makes, carried forward and tested.
-practice_attempts (
-  id               uuid PK,
-  session_id       uuid NOT NULL REFERENCES practice_sessions(id) ON DELETE CASCADE,
-  user_id          uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  syllabus_item_id uuid REFERENCES syllabus_items(id) ON DELETE SET NULL,
-  phoneme          text NOT NULL,
-  prompt_text      text NOT NULL,
-  assessed         boolean NOT NULL,
-  similarity       real,
-  confidence       real,
-  estimated_match  text,
-  feedback_code    text NOT NULL,
-  features         jsonb,        -- the measured acoustic features
-  created_at       timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE INDEX ON practice_attempts (user_id, phoneme, created_at DESC);
-CREATE INDEX ON syllabus_items (syllabus_id, position);
-```
-
-**Migration.** The existing SQLite data is disposable — anonymous
-`localStorage` ids with no recovery value. No migration is planned; the
-tables are created fresh.
-
-Storing `features` per attempt is a small addition that unlocks progress
-*in feature space* — "your frication centroid moved from 3.2 kHz to 4.8 kHz" —
-which is a learning signal derived entirely from the learner's own data.
+`POST /api/attempts` carries `assessed` for the same reason. Before it did,
+an attempt the analyser explicitly refused to classify came back with
+`deviation.type: "inconclusive"` and `scores.overall: 86.9` — and the UI drew
+an 87% dial for a recording the system had declined to score.
 
 ---
 
-## 6. AI pipeline
+## 8. AI pipeline
 
-Three AI surfaces, deliberately unequal in authority.
+Three surfaces, deliberately unequal in authority.
 
 | Surface | Model | Reads | Writes | Can it affect a score? |
 |---|---|---|---|---|
 | Transcription | Whisper via Groq | audio | words | **No** |
-| Syllabus generation | `gpt-oss-120b` | phoneme profile summary | ordered items | **No** |
-| Exercise generation | `gpt-oss-120b` | phoneme + level | prompt text, cue | **No** |
+| Practice material | `gpt-oss-120b` | phoneme + level | prompt text, cue | **No** |
+| Exercise generation | `gpt-oss-120b` | measurement summary | explanation, words | **No** |
 
 **The acoustic analysis is not an AI surface.** It is signal processing with a
 statistical classifier over reference profiles — deterministic, inspectable,
 and the only thing that produces a number.
 
-### Guards, carried forward from the current codebase
+### Guards
 
 1. Response schemas set `extra="forbid"` — a returned `score` field fails
    validation rather than being silently ignored.
 2. Every generated field is a string. There is no numeric field to fill.
-3. Generated prompt text is **verified in code** before use: the target sound
-   must actually begin the first word, checked against spelling. Material that
-   does not contain the sound being practised would corrupt the measurement.
-4. A deterministic fallback bank covers every phoneme and level. No API key,
-   no network, a timeout, or a rejected response all fall back silently. The
-   demo never depends on a network call.
-5. `generated_by` is stored and shown, so a learner can always see whether an
-   exercise came from a model or the bank.
-
-### Syllabus generation prompt shape
-
-```
-input:  target phonemes with status and confusion patterns
-        native language, target language, self-assessment
-        never: audio, never: raw scores to re-interpret
-output: ordered items {phoneme, level, prompt_text, contrast_text, cue}
-        + a plain-language rationale
-validate: phoneme in inventory, level in enum, prompt starts with the sound,
-          length caps, no numeric fields
-on failure: deterministic syllabus from the phoneme profile, generated_by='fallback'
-```
+3. Generated prompt text is verified in code before use: the target sound must
+   actually begin the first word. Material that does not contain the sound
+   being practised would corrupt the measurement.
+4. A deterministic fallback bank covers every phoneme and level. No key, no
+   network, a timeout, or a rejected response all fall back silently.
+5. `generated_by` is stored and shown, so a learner can see whether an exercise
+   came from a model or the bank.
+6. **The speech-to-text model is never sent to a chat endpoint.** A test scans
+   for it. `llm/exercise.py` sent `groq_model` — Whisper — to
+   `/chat/completions` for its entire life; Groq returned 400, the bare
+   `except` swallowed it, and the endpoint silently returned its hard-coded
+   fallback on every call. Fixing the model exposed a second bug underneath:
+   `max_tokens: 350` left no room for the reasoning trace `gpt-oss-120b`
+   emits before its JSON, so the request died as `json_validate_failed` with
+   an empty generation. A test now requires at least 800.
 
 ---
 
-## 7. Audio pipeline
-
-**Unchanged.** It works, is tested, and is the piece least worth touching.
+## 9. Audio pipeline
 
 ```
 browser: MediaRecorder (WebM/Opus, MP4/AAC on Safari)
@@ -545,10 +409,20 @@ server:  ffmpeg → 16 kHz mono WAV   (one temp file, deleted in `finally`)
    audio discarded when the request ends
 ```
 
+The browser container is detected, never assumed — WebM/Opus on Chrome,
+Firefox and Edge; MP4/AAC on Safari. Duration, sample rate, channels and MIME
+type are measured client-side and travel with the upload, so the server keeps
+three views: what the client reported, what ffprobe independently measured,
+and the normalised result. Where they disagree, the server's measurement wins.
+
 **Audio is never persisted.** One transient temp file, removed in `finally`;
-no database column can hold it. The only transmission off-server is stage 1 to
-Groq, and that is disclosed in the UI rather than glossed. Setting
+no database column, local or remote, can hold it. The only transmission
+off-server is stage 1 to Groq, disclosed in the UI rather than glossed.
 `STT_PROVIDER=fake` removes even that, at the cost of transcription only.
+
+There is no 2-second minimum. CLAUDE.md requires word-level practice and "sun"
+is well under a second; the 0.35 s floor exists to catch a tap that captured
+nothing, not to reject a short word.
 
 ### Stage 2 in one line
 
@@ -556,138 +430,96 @@ Groq, and that is disclosed in the UI rather than glossed. Setting
 
 Every step can decline. A refusal returns `similarity 0.0`, `confidence 0.0`
 and an empty feature set — never a small number a UI could render as a low
-score. Full detail: [docs/IMPLEMENTATION.md §14](docs/IMPLEMENTATION.md).
+score.
+
+Features are chosen per target rather than extracted blindly: fricatives are
+measured on spectral shape (centroid, bandwidth, rolloff, flatness, tilt,
+high-frequency ratio, ZCR), approximants on formants (F1–F3, F3 relative to
+the speaker's own median, transition slope). Reference profiles are the median
+of a 288-token synthesised corpus measured through the *same* code path that
+scores a learner — a reference measured a different way would encode the
+difference between the two paths as if it were a pronunciation error.
 
 ---
 
-## 8. Deployment architecture
+## 10. Deployment
 
 ```
 Browser ──► Vercel (static SPA + /api/* rewrite) ──► Render (Docker, FastAPI)
    │                                                        │
-   └────────► Supabase (auth + Postgres) ◄──────────────────┘
-                                                            └──► Groq
+   └──► IndexedDB (all learner state)                       └──► Groq
 ```
 
 | Piece | Host | Why |
 |---|---|---|
-| Frontend | Vercel | static SPA, 108 kB gzipped, FCP 632 ms measured |
-| Backend | Render (Docker) | needs ffmpeg, 478 MB of scientific Python, a writable disk |
-| Auth + DB | Supabase | auth and Postgres in one, with RLS |
+| Frontend | Vercel | static SPA, 109 kB gzipped |
+| Backend | Render (Docker) | needs ffmpeg and 478 MB of scientific Python |
 | AI | Groq | Whisper + chat |
 
 **Vercel cannot host the backend** — 478 MB of dependencies against a 250 MB
 function limit, plus ffmpeg as a real binary. Measured, not assumed.
 
-The frontend reaches the API through a **Vercel rewrite**
-(`/api/:path*` → Render), which is a server-to-server hop: no browser CORS, and
-preview deployments work without allow-listing each generated origin.
+The frontend reaches the API through a Vercel rewrite (`/api/:path*` →
+Render): a server-to-server hop, so no browser CORS and preview deployments
+work without allow-listing each generated origin.
 
-Currently live: `phonoplay-sound-lab.vercel.app` → `phonoplay-api.onrender.com`.
+Live: `phonoplay-sound-lab.vercel.app` → `phonoplay-api.onrender.com`.
 
-### Environment variables
-
-Existing (26, all documented in `api/.env.example`) plus:
-
-```
-SUPABASE_URL              backend: JWT verification + Postgres
-SUPABASE_ANON_KEY         frontend: sign-up / sign-in
-SUPABASE_SERVICE_KEY      backend only, never sent to the browser
-SUPABASE_JWT_SECRET       backend: verify tokens
-DATABASE_URL              Postgres connection
-VITE_SUPABASE_URL         frontend
-VITE_SUPABASE_ANON_KEY    frontend
-```
+Because the backend holds no learner state, Render's free tier spinning down
+after 15 minutes costs a cold start and nothing else. Progress is in the
+browser and survives regardless.
 
 ---
 
-## 9. Risks
+## 11. Known limits and debt
 
-Ordered by how likely they are to hurt.
+Ordered by how likely each is to hurt.
 
-**1. Scope against the deadline.** The vision is roughly twice the current
-system: auth, onboarding, a learner model, syllabus generation and adaptation,
-plus a database migration. The measurement engine — the hard part — is done,
-but everything around it is new. *Mitigation: the phasing in §10, with a
-working demo at the end of every phase.*
+**1. Reference data is two synthesised adult voices.** No children, and
+children's formants sit several hundred Hz above adults'. `/l/`–`/w/` is
+unreliable (12 of 36 `/w/` tokens read as `/l/`); `/θ/`–`/f/` is genuinely
+hard and the stage reports lower confidence there, which is correct behaviour
+but not a solution. In-sample identification is 426/504 (84.5%), precision
+88.4% at the naming floor. Every figure is in-sample and optimistic by
+construction. See `api/app/acoustic/reference/README.md`.
 
-**2. Four phonemes is a thin syllabus.** "Your pronunciation writes your
-syllabus" implies enough material to personalise over. Four sounds × five
-levels is 20 cells. Expanding the inventory means new reference profiles
-(scripted, feasible) **and** new landmark detectors for manners the segmenter
-does not handle — stops and vowels are not fricatives or approximants. That is
-real work, not a word-list change. *Mitigation: ship four sounds deeply and
-say so; treat inventory expansion as post-hackathon.*
+**2. An in-sample corpus cannot detect a fault it shares with the reference.**
+The onset window was once allowed to run to 130 ms — longer than the sound it
+was bounding — so in a word with a long voiced run it reached past the
+constriction into the vowel, and because a vowel is flatter than an
+approximant the reading was taken from the vowel. A correct /r/ in "rabbit"
+came back as an /l/ substitution at similarity 0.038. The corpus scored itself
+as correct throughout, because every corpus word is measured the way the
+profiles were built. It was found on a held-out recording.
 
-**3. Auth is a new failure surface.** Sign-up, sessions, token refresh, RLS
-policies, and the "logged out mid-recording" case. *Mitigation: Supabase
-handles the hard parts; keep the profile minimal; allow an anonymous trial
-path so a broken sign-up cannot block a demo.*
+**3. Three practice surfaces coexist.** `/practice/:sound` is the engine
+driven by the local learner model; `/attempt/:sound` is the older
+single-attempt flow feeding `/results`; `/journey/:sound` is a server-driven
+stage progression with its own SQLite store. The journey predates local
+persistence and duplicates progression logic that now lives in the browser.
+Converging them means keeping the Results presentation — the best
+visualisation work in the project — and repointing it at the learner model.
 
-**4. Reference data limits accuracy.** Two synthesised adult voices, no
-children. `/l/`–`/w/` unreliable, `/θ/`–`/f/` hard. A syllabus built on a
-shaky measurement inherits the shakiness. *Mitigation: mastery requires
-several assessed attempts, not one; refusals are excluded; the limits stay
-documented in the UI.*
+**4. Four phonemes is a thin syllabus.** `/s/ /r/ /l/ /th/`. Expanding the
+inventory needs new reference profiles (scripted, feasible) **and** new
+landmark detectors for manners the segmenter does not handle — stops and
+vowels are not fricatives or approximants. Real work, not a word-list change.
 
-**5. Render free tier.** Spins down after 15 minutes with a ~50 s cold start,
-and has no persistent disk. Postgres moves off the disk, which removes half
-the problem. *Mitigation: warm before demoing, or upgrade to `starter`.*
+**5. Stress and rhythm are not measured.** Tested before excluding: eight
+two-syllable words with unambiguous stress, both reference voices, syllable
+nuclei from the voiced energy envelope scored on prominence × duration. Four
+of sixteen tokens produced no clean two-nucleus split; ten of sixteen were
+labelled correctly overall — on a binary task where a coin gets eight. A
+stress percentage built on that would be a guess wearing a number, so there
+is none.
 
-**6. Two flows must converge.** Merging Practice/Results and Journey is
-refactoring under time pressure, and Results holds the best visualisation
-work. *Mitigation: keep the Results presentation, repoint it at the new data
-model, delete the in-memory path.*
+**6. Local-only persistence has real costs.** Clearing site data loses
+everything, and progress does not follow a learner to another device or
+browser. That is the deliberate trade for working immediately with no account
+and no personal data; `exportAll()` lets a learner take a copy.
 
-**7. Syllabus feels arbitrary.** If a learner cannot see why an item was
-chosen, the positioning collapses. *Mitigation: every item stores a rationale
-tied to a measurement, and the UI shows it.*
-
----
-
-## 10. Implementation phases
-
-Each phase ends with something demonstrable. If the deadline arrives early,
-whatever is finished still works.
-
-### Phase 1 — Foundation
-- Supabase project; `profiles` + RLS
-- Sign up / sign in / sign out; JWT verification in FastAPI
-- `GET/PATCH /api/me`
-- **Demo:** an account persists across devices
-
-### Phase 2 — Persistence
-- Postgres schema for all six tables
-- Repoint the store from SQLite; delete the in-memory routers
-- Delete the broken `llm/exercise.py`
-- **Demo:** progress survives a restart, tied to an account
-
-### Phase 3 — The learner model *(the core)*
-- `app/learner/`: update `phoneme_profiles` from each measurement
-- Mastery and status derivation
-- `POST /api/practice/attempt` — the single main loop
-- **Demo:** recording visibly moves a mastery number
-
-### Phase 4 — Baseline and syllabus
-- Baseline assessment (~8 prompts, all four sounds)
-- `POST /api/syllabus/generate` with validation and fallback
-- Onboarding: languages → self-assessment → baseline → syllabus
-- **Demo:** the full "your pronunciation writes your syllabus" story
-
-### Phase 5 — Adaptation
-- Item state transitions from measured mastery
-- `POST /api/syllabus/adapt`; rationale shown in the UI
-- **Demo:** the syllabus visibly changes after practice
-
-### Phase 6 — Surface
-- Dashboard, syllabus view, progress over time
-- Sound Lab: the existing evidence (per-feature z-scores, located segment,
-  candidate posteriors) made visible — it is already returned and never shown
-- **Demo:** the full product
-
-### Cut first, if needed
-`/games`; multilingual beyond English + Bangla; feature-space progress
-visualisation; inventory expansion. None is load-bearing for the pitch.
+**7. `/games` is unconnected** to the analysis, and 10 advisory lint warnings
+remain (all pre-existing, none errors).
 
 ---
 
@@ -695,9 +527,9 @@ visualisation; inventory expansion. None is load-bearing for the pitch.
 
 | Topic | Where |
 |---|---|
-| Acoustic analysis: features, scoring maths, accuracy | [docs/IMPLEMENTATION.md §14](docs/IMPLEMENTATION.md) |
-| Adaptive journey: stages, policy, persistence | [docs/IMPLEMENTATION.md §15](docs/IMPLEMENTATION.md) |
-| Multilingual and the Bangla bridge | [docs/IMPLEMENTATION.md §16](docs/IMPLEMENTATION.md) |
-| Privacy and safety guarantees | [docs/IMPLEMENTATION.md §17](docs/IMPLEMENTATION.md) |
+| Acoustic analysis: features, scoring maths, accuracy | [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) |
 | Reference-data limits, measured | `api/app/acoustic/reference/README.md` |
-| Current deployment and recovery | [FINAL_AUDIT.md](FINAL_AUDIT.md) |
+| Learner model rules and thresholds | `web/src/db/policy.ts` |
+| Privacy and safety guarantees | `api/app/safety.py`, `web/src/lib/safety.ts` |
+| Repository state and verification | [PHONOPLAY_STATUS.md](PHONOPLAY_STATUS.md) |
+| Measured submission readiness, with reproduction commands | [FINAL_AUDIT.md](FINAL_AUDIT.md) |
