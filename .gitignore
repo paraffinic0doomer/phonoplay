@@ -36,3 +36,5 @@ api/reference_corpus/
 
 # Stray Vite cache if a web command is run from the wrong directory
 .vite/
+
+.vercel

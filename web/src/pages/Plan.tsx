@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { ButtonLink } from '../components/Button'
 import { ErrorNotice } from '../components/ErrorNotice'
 import { getActivePlan } from '../db'
 import type { SyllabusItem } from '../db'
 import { createInitialSyllabus } from '../adaptive/syllabus'
 import { PHONEME_LABEL, STAGE_LABEL } from '../practice/material'
+import { SOUND_PROFILES } from '../data/sounds'
 
 export function Plan() {
   const [items, setItems] = useState<SyllabusItem[] | null>(null)
@@ -45,6 +46,6 @@ export function Plan() {
         {item.id === next.id && <span className="label-mono text-ink">Next</span>}
       </li>)}
     </ol>
-    <div className="mt-8"><ButtonLink to={`/practice/${next.phoneme}?lesson=${encodeURIComponent(next.id)}`} variant="sound" size="lg">Start Day {next.day}: {STAGE_LABEL[next.skillType]}</ButtonLink></div>
+    <div className="mt-8" style={{ '--sound': SOUND_PROFILES[next.phoneme].color } as CSSProperties}><ButtonLink to={`/practice/${next.phoneme}?lesson=${encodeURIComponent(next.id)}`} variant="sound" size="lg">Start Day {next.day}: {STAGE_LABEL[next.skillType]}</ButtonLink></div>
   </main>
 }
