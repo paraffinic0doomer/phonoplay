@@ -14,7 +14,7 @@
 export { LanguageKnowledgeService } from './service.ts'
 export type { AssessmentQuery, PhonemeQuery } from './service.ts'
 
-export { ENGLISH_ASSESSMENT_PROMPTS, ENGLISH_PHONEMES } from './english.ts'
+export { ENGLISH_ASSESSMENT_PROMPTS, ENGLISH_LANGUAGE_PROFILE, ENGLISH_PHONEMES } from './english.ts'
 export { LANGUAGES, LANGUAGE_PAIRS, pairKey } from './languages.ts'
 
 export type {
@@ -25,6 +25,7 @@ export type {
   LanguageCode,
   LanguagePairProfile,
   LanguageProfile,
+  SupportedExerciseType,
   PhonemeCategory,
   PhonemeExample,
   // Exported under both names on purpose: `PhonemeKnowledge` is the alias to

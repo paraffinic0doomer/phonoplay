@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom'
 import { useEffect, useState, type CSSProperties } from 'react'
 import { SOUND_LIST, SOUND_PROFILES } from '../data/sounds'
 import type { SoundId, TargetSound } from '../types/api'
@@ -95,17 +94,6 @@ export function SoundSelect() {
                   onSelect={() => selectSound(profile.id)}
                   attemptCount={attemptsForSound(profile.id).length}
                 />
-                {/* The journey is a separate way in: single practice runs
-                    one prompt, the journey adapts across seven stages and
-                    remembers where you got to. */}
-                <Link
-                  to={`/practice/${profile.id}`}
-                  onClick={() => selectSound(profile.id)}
-                  className="label-mono mt-2 inline-block text-ink-faint underline underline-offset-2 hover:text-ink"
-                  style={{ '--sound': profile.color } as CSSProperties}
-                >
-                  Start the sound journey &rarr;
-                </Link>
               </li>
             ))}
       </ul>

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import { MAX_CLIP_MS } from '../lib/recorder'
 import type { RecordingClip } from '../lib/recorder'
-import { measurePronunciation } from '../lib/api'
+import { generateExerciseFor, measurePronunciation } from '../lib/api'
+import type { ExerciseEvidence } from '../lib/api'
+import type { Exercise } from '../types/api'
 import { useCapture } from '../state/useCapture'
 import { RecordButton, useElapsed } from '../components/RecordButton'
 import type { RecordStatus } from '../components/RecordButton'
@@ -15,6 +17,8 @@ import { MouthDiagram } from '../components/MouthDiagram'
 import { SOUND_PROFILES, isSoundId } from '../data/sounds'
 import { StageLadder } from '../components/StageLadder'
 import { AttemptResultPanel } from '../components/AttemptResultPanel'
+import { SoundLabResult } from '../components/SoundLabResult'
+import { ExercisePanel } from '../components/ExercisePanel'
 import {
   PHONEME_LABEL,
   PHONEME_NAME,
@@ -28,11 +32,17 @@ import { speak, speechAvailable, stopSpeaking } from '../assessment/speech'
 import {
   advanceIfReady,
   evaluate,
+  getProfile,
   ladderIndex,
   recordPracticeAttempt,
   setStage,
+  startItem,
+  completeItem,
+  getSettings,
 } from '../db'
 import type { LearnerPolicy, Phoneme, PhonemeProfile, SkillType, StageVerdict } from '../db'
+import type { PronunciationMeasurement } from '../types/api'
+import { adaptSyllabus } from '../adaptive/syllabus'
 
 /**
  * The practice engine.
@@ -66,13 +76,19 @@ interface Attempt {
   assessed: boolean
   detected: string | null
   feedback: AttemptFeedback
+  measurement: PronunciationMeasurement
+  peaks: number[]
+  audio: Blob
+  durationS: number
 }
 
 export function PracticeEngine() {
   const { sound } = useParams()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const valid = isSoundId(sound)
   const phoneme = (valid ? sound : 's') as Phoneme
+  const lessonId = searchParams.get('lesson')
 
   const [profile, setProfile] = useState<PhonemeProfile | null>(null)
   const [policy, setPolicy] = useState<LearnerPolicy | null>(null)
@@ -86,6 +102,10 @@ export function PracticeEngine() {
   const [capturing, setCapturing] = useState(false)
   const [level, setLevel] = useState(0)
   const [speaking, setSpeaking] = useState(false)
+  const [adaptation, setAdaptation] = useState<Awaited<ReturnType<typeof adaptSyllabus>> | null>(null)
+  const [exercise, setExercise] = useState<Exercise | null>(null)
+  const [exerciseStatus, setExerciseStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  const [loadError, setLoadError] = useState<{ code: string; message: string; retryable: boolean } | null>(null)
   const [sessionId] = useState(() =>
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
@@ -108,16 +128,33 @@ export function PracticeEngine() {
 
   /** Read the learner model. The single source for which rung we are on. */
   const refresh = useCallback(async () => {
-    const state = await evaluate(phoneme)
-    if (!alive.current) return
-    setProfile(state.profile)
-    setPolicy(state.policy)
-    setVerdict(state.stage)
+    setLoadError(null)
+    try {
+      const state = await evaluate(phoneme)
+      if (!alive.current) return
+      setProfile(state.profile)
+      setPolicy(state.policy)
+      setVerdict(state.stage)
+    } catch {
+      if (!alive.current) return
+      setLoadError({
+        code: 'UNKNOWN',
+        message: 'We could not open your saved practice plan.',
+        retryable: true,
+      })
+    }
   }, [phoneme])
 
   useEffect(() => {
     void refresh()
   }, [refresh])
+
+  // A syllabus item is active only while its linked practice screen is open.
+  // Generic sound practice has no lesson id and deliberately changes no plan
+  // bookkeeping.
+  useEffect(() => {
+    if (lessonId) void startItem(lessonId)
+  }, [lessonId])
 
   /*
    * Where the learner is *now* — which is not what the verdict reports.
@@ -181,6 +218,37 @@ export function PracticeEngine() {
     setSpeaking(false)
   }, [])
 
+  const requestExercise = useCallback(
+    async (learner: PhonemeProfile) => {
+      setExerciseStatus('loading')
+      try {
+        const settings = await getSettings()
+        const evidence: ExerciseEvidence = {
+          target_phoneme: phoneme,
+          // Adaptation already happened locally. The generator only needs the
+          // resulting sound and practice rung, not a learner score history.
+          mastery: null,
+          confidence: null,
+          recent_scores: [],
+          current_stage: learner.currentStage,
+          learning_mode: settings.learningMode,
+          exercise_type: stage === 'minimal_pair' ? 'contrast' : 'production',
+          contrast_accuracy: null,
+          native_language: settings.nativeLanguage,
+          target_language: settings.targetLanguage,
+        }
+        const generated = await generateExerciseFor(evidence)
+        if (!alive.current) return
+        setExercise(generated)
+        setExerciseStatus('ready')
+      } catch {
+        if (!alive.current) return
+        setExerciseStatus('error')
+      }
+    },
+    [phoneme, stage],
+  )
+
   /**
    * Analyse -> feedback -> update, in that order.
    *
@@ -221,6 +289,13 @@ export function PracticeEngine() {
         duration: clip.durationS,
       })
 
+      // The syllabus is rebuilt only from the learner model that this
+      // acoustic measurement just updated. Generated practice text cannot
+      // influence this decision.
+      const updatedProfile = await getProfile(phoneme)
+      if (lessonId) await completeItem(lessonId)
+      const planChange = await adaptSyllabus(updatedProfile)
+
       const previous = attempts.filter((a) => a.similarity !== null).at(-1)?.similarity ?? null
       const entry: Attempt = {
         index: attempts.length + 1,
@@ -235,8 +310,14 @@ export function PracticeEngine() {
           detected: result.estimated_match,
           previous,
         }),
+        measurement: result,
+        peaks: clip.peaks,
+        audio: clip.blob,
+        durationS: clip.durationS,
       }
       setAttempts((current) => [...current, entry])
+      setAdaptation(planChange)
+      void requestExercise(updatedProfile)
       await refresh()
       if (alive.current) setPhase('feedback')
     } catch (cause) {
@@ -252,7 +333,7 @@ export function PracticeEngine() {
       })
       setPhase('review')
     }
-  }, [clip, phoneme, item.text, sessionId, attempts, refresh])
+  }, [clip, phoneme, item.text, sessionId, attempts, refresh, lessonId, requestExercise])
 
   /** Another go at the same rung. Nothing is cleared. */
   const retry = useCallback(() => {
@@ -295,9 +376,13 @@ export function PracticeEngine() {
   if (!profile || !policy || !verdict) {
     return (
       <main className="mx-auto max-w-2xl px-5 py-16">
-        <p className="label-mono text-ink-faint" aria-live="polite">
-          Opening your practice…
-        </p>
+        {loadError ? (
+          <ErrorNotice error={loadError} onRetry={() => void refresh()} />
+        ) : (
+          <p className="label-mono text-ink-faint" aria-live="polite">
+            Opening your practice…
+          </p>
+        )}
       </main>
     )
   }
@@ -440,6 +525,38 @@ export function PracticeEngine() {
             attempts={attempts}
             onRetry={retry}
           />
+
+          <div className="mt-5">
+            <SoundLabResult
+              phoneme={phoneme}
+              profile={profile}
+              result={latest.measurement}
+              peaks={latest.peaks}
+              blob={latest.audio}
+              durationS={latest.durationS}
+              accessibility={policy.stages.includes('syllable')}
+            />
+          </div>
+
+          <div className="mt-5">
+            <ExercisePanel
+              status={exerciseStatus}
+              exercise={exercise}
+              onRetryGenerate={() => void requestExercise(profile)}
+              onTryAgain={() => retry()}
+            />
+          </div>
+
+          {adaptation && (
+            <div className="mt-5 rounded-2xl bg-paper-2 p-5">
+              <p className="label-mono text-ink-faint">What changed next</p>
+              <p className="mt-2 text-lg font-semibold text-ink">
+                {adaptation.action === 'advance' ? 'Your next lesson moved up.' : adaptation.action === 'simplify' ? 'Your next lesson is a smaller step.' : adaptation.action === 'reinforce' ? 'Your next lesson adds targeted repetition.' : 'Your next lesson stays on this step.'}
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-ink-soft">{adaptation.reason}</p>
+              <div className="mt-4"><ButtonLink to="/plan" variant="outline">See your updated plan</ButtonLink></div>
+            </div>
+          )}
 
           {/* ── Continue ─────────────────────────────────────── */}
           <div className="mt-6 space-y-3">

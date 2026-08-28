@@ -146,6 +146,8 @@ export interface Syllabus {
   id: string
   version: number
   title: string
+  /** Plain-language explanation whenever a new version replaces the plan. */
+  adaptationReason?: string
   targetLanguage: string
   status: SyllabusStatus
   createdAt: string

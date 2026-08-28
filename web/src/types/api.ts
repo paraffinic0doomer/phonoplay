@@ -241,6 +241,105 @@ export interface TranscriptionResponse {
   pronunciation_assessed: boolean
 }
 
+/* ── Stage 2: acoustic measurement (POST /api/pronunciation) ──────────
+ *
+ * Mirrors api/app/schemas.py::PronunciationResponse.
+ *
+ * This is the only stage that produces a number. Every field below is derived
+ * from the signal by `api/app/acoustic/`; none of it is influenced by the
+ * transcript and none of it may come from a language model.
+ *
+ * The `candidates`, `segment` and `quality` blocks are evidence rather than
+ * verdict: they exist so a reader can see *why* the measurement came out the
+ * way it did. The Sound Lab draws its charts from them, which is what lets it
+ * visualise the analysis without inventing anything.
+ */
+
+/** One phoneme the recording was compared against. */
+export interface CandidateInfo {
+  phoneme: string
+  ipa: string
+  /** exp(-½ · mean weighted squared error) against this profile, in (0, 1]. */
+  similarity: number
+  /** Softmax over the candidate log-likelihoods. Sums to 1 across the set. */
+  posterior: number
+  /** How many of this profile's features the recording supported. */
+  features_used: number
+  /**
+   * Per-feature standardised error: `(measured - reference.mean) / reference.sd`.
+   *
+   * Positive means the recording measured *above* the reference average.
+   * This is the field that makes a verdict auditable, and the only honest
+   * basis for a "how did each measurement compare" chart — the frontend holds
+   * no reference statistics of its own and must not synthesise any.
+   */
+  z_scores: Record<string, number>
+}
+
+/** Where in the recording the target sound was located. */
+export interface SegmentInfo {
+  start_s: number
+  end_s: number
+  duration_s: number
+  /** 0–1. How clearly the landmark stood out from its surroundings. */
+  salience: number
+  /** How it was found, e.g. "frication-run", "voiced-onset". */
+  method: string
+  position_hint: string
+}
+
+/** Whether the recording could carry a measurement at all. */
+export interface RecordingQuality {
+  duration_s: number
+  speech_duration_s: number
+  snr_db: number
+  clipped_fraction: number
+  voiced_fraction: number
+  dynamic_range_db: number
+  speech_present: boolean
+  ok: boolean
+  /** 0–1 trust multiplier folded into `confidence`. */
+  factor: number
+  warnings: string[]
+  blocking_code: string | null
+}
+
+/** POST /api/pronunciation. Stage 2 only — never a transcript. */
+export interface PronunciationMeasurement {
+  target_phoneme: string
+  target_ipa: string
+  /** Null when the evidence did not support naming a sound. Never guessed. */
+  estimated_match: string | null
+  estimated_match_ipa: string | null
+  /** Gaussian similarity to the target profile, in (0, 1]. */
+  similarity_score: number
+  confidence: number
+  /** Measured feature values, in their own units. Keys vary by sound family. */
+  acoustic_features: Record<string, number>
+  feedback_code: string
+  /** "assessed" | "insufficient_confidence" | "unusable_audio". */
+  status: string
+  message: string
+  /** The specific reason behind a failure headline. */
+  detail: string | null
+  /** A pronunciation cue, written by the deterministic feedback bank. */
+  cue: string | null
+  hint: string | null
+  /** False whenever no phoneme was named, for any reason. Branch on this. */
+  assessed: boolean
+  candidates: CandidateInfo[]
+  segment: SegmentInfo | null
+  quality: RecordingQuality
+  /** Speaker reference values used for normalisation. */
+  speaker: Record<string, number>
+  /** Reported for transparency, deliberately not scored on. */
+  mfcc: number[]
+  /** Reference corpus provenance: version, built, tokens, source, coverage. */
+  reference: Record<string, unknown>
+  processing_ms: number
+  stage: string
+}
+
 export type ExerciseActivityType =
   | 'minimal_pairs'
   | 'word_ladder'

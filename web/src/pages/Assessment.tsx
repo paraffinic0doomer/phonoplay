@@ -20,8 +20,10 @@ import { buildProfile } from '../assessment/profile'
 import type { AssessmentMeasurement } from '../assessment/profile'
 import { speak, speakPair, speechAvailable, stopSpeaking } from '../assessment/speech'
 import { ProfileCard } from '../components/ProfileCard'
-import { getLearningMode, recordContrastAttempt, recordMeasurement } from '../db'
+import { getSettings, recordContrastAttempt, recordMeasurement } from '../db'
 import type { LearningMode } from '../db'
+import { createInitialSyllabus } from '../adaptive/syllabus'
+import type { AppError } from '../state/session'
 
 /**
  * The baseline assessment.
@@ -42,6 +44,7 @@ export function Assessment() {
   const navigate = useNavigate()
 
   const [mode, setMode] = useState<LearningMode | null>(null)
+  const [languages, setLanguages] = useState<{ native: string; target: string } | null>(null)
   const [index, setIndex] = useState(0)
   const [phase, setPhase] = useState<Phase>('task')
   const [clip, setClip] = useState<RecordingClip | null>(null)
@@ -52,6 +55,9 @@ export function Assessment() {
   const [speaking, setSpeaking] = useState(false)
   const [pairAnswer, setPairAnswer] = useState<'correct' | 'wrong' | null>(null)
   const [level, setLevel] = useState(0)
+  const [setupError, setSetupError] = useState<AppError | null>(null)
+  const [finalizing, setFinalizing] = useState(false)
+  const [finalizeError, setFinalizeError] = useState<AppError | null>(null)
 
   // A lazy useState initializer is the sanctioned place to generate this:
   // it runs exactly once, and unlike a bare call during render it is not a
@@ -71,13 +77,31 @@ export function Assessment() {
     }
   }, [])
 
-  useEffect(() => {
-    void getLearningMode().then((value) => {
-      if (alive.current) setMode(value)
-    })
+  const loadSetup = useCallback(async () => {
+    setSetupError(null)
+    try {
+      const settings = await getSettings()
+      if (!alive.current) return
+      setMode(settings.learningMode)
+      setLanguages({ native: settings.nativeLanguage, target: settings.targetLanguage })
+    } catch {
+      if (!alive.current) return
+      setSetupError({
+        code: 'UNKNOWN',
+        message: 'We could not open your saved learning setup.',
+        retryable: true,
+      })
+    }
   }, [])
 
-  const plan = useMemo<Task[]>(() => (mode ? planFor(mode) : []), [mode])
+  useEffect(() => {
+    void loadSetup()
+  }, [loadSetup])
+
+  const plan = useMemo<Task[]>(
+    () => (mode && languages ? planFor(mode, languages) : []),
+    [mode, languages],
+  )
   const task = plan[index]
   const total = plan.length
   const measuredTotal = useMemo(() => measuredCount(plan), [plan])
@@ -231,18 +255,45 @@ export function Assessment() {
   const finished = plan.length > 0 && index >= plan.length
   const profile = finished ? buildProfile(measurements) : null
 
-  if (!mode) {
+  if (!mode || !languages) {
     return (
       <main className="mx-auto max-w-2xl px-5 py-16">
-        <p className="label-mono text-ink-faint" aria-live="polite">
-          Preparing your assessment…
-        </p>
+        {setupError ? (
+          <ErrorNotice error={setupError} onRetry={() => void loadSetup()} />
+        ) : (
+          <p className="label-mono text-ink-faint" aria-live="polite">
+            Preparing your assessment…
+          </p>
+        )}
       </main>
     )
   }
 
   if (profile) {
-    return <ProfileCard profile={profile} onContinue={() => navigate('/sounds')} />
+    const continueToPlan = async () => {
+      setFinalizing(true)
+      setFinalizeError(null)
+      try {
+        await createInitialSyllabus()
+        navigate('/plan')
+      } catch {
+        setFinalizing(false)
+        setFinalizeError({
+          code: 'UNKNOWN',
+          message: 'We could not save your personalised plan. Your recordings are still saved.',
+          retryable: true,
+        })
+      }
+    }
+    return (
+      <ProfileCard
+        profile={profile}
+        onContinue={() => void continueToPlan()}
+        busy={finalizing}
+        error={finalizeError}
+        onRetry={() => void continueToPlan()}
+      />
+    )
   }
 
   if (!task) return null

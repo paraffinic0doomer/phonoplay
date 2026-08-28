@@ -69,10 +69,36 @@ _ONSET_SPELLINGS: dict[str, tuple[str, ...]] = {
 #: Prefixes that look right but are a different sound entirely.
 _ONSET_EXCLUSIONS: dict[str, tuple[str, ...]] = {
     "s": ("sh",),
+    # See _VOICED_TH below: "th" cannot be excluded by prefix, because the
+    # voiced and voiceless spellings are the same.
     "th": (),
     "r": (),
     "l": (),
 }
+
+#: Word-initial voiced TH. A closed class, and every one of them is a trap.
+#:
+#: English spells /theta/ and /eth/ identically. The reference corpus for "th"
+#: is entirely voiceless - theme, thick, thin, thing, think, thumb - so a
+#: prompt beginning "the" or "this" would be measured against a profile for a
+#: different sound, and a learner producing it perfectly would be marked down
+#: for it. Observed: a generated /th/ phrase came back as "the thick thrum"
+#: and a sentence as "This thing is theirs", both of which begin voiced.
+#:
+#: Matched whole-word, not by prefix, because "theme" and "therapy" are
+#: voiceless and would be caught by any prefix that catches "the".
+_VOICED_TH: frozenset[str] = frozenset(
+    {
+        "the", "this", "that", "these", "those",
+        "they", "them", "their", "theirs", "themselves",
+        "then", "than", "though", "thus", "thence",
+        "thee", "thy", "thine", "thou", "tho",
+    }
+)
+
+#: "there", "therefore", "thereby"... all voiced. No voiceless word starts
+#: "there" - "therapy" and "therapeutic" start "thera".
+_VOICED_TH_PREFIX = "there"
 
 
 class StageMaterial(BaseModel):
@@ -218,9 +244,13 @@ _BANK: dict[str, dict[str, list[StageMaterial]]] = {
     "th": {
         "isolated": [StageMaterial(text="th", display="thhhh", cue="Tongue tip just past your top teeth, and blow gently. It is a quiet sound.")],
         "syllable": [
+            # Nonsense syllables on purpose, and none of them a real word:
+            # "thee" and "tho" read as the voiced pronoun and as "though", so
+            # a learner would say the voiced sound while being measured
+            # against the voiceless reference the corpus is built from.
             StageMaterial(text="thah", cue="Let the tongue slip back in as the vowel starts."),
-            StageMaterial(text="thee", cue="Gentle air — do not push."),
-            StageMaterial(text="tho", cue="Keep the tongue forward for the whole /th/."),
+            StageMaterial(text="thoo", cue="Gentle air — do not push."),
+            StageMaterial(text="thuh", cue="Keep the tongue forward for the whole /th/."),
         ],
         "word_simple": [
             StageMaterial(text="think", contrast="sink", cue="Tongue between the teeth, not behind them."),
@@ -265,6 +295,8 @@ def starts_with_target(text: str, sound: str) -> bool:
     """
     word = _first_word(text)
     if not word:
+        return False
+    if sound == "th" and (word in _VOICED_TH or word.startswith(_VOICED_TH_PREFIX)):
         return False
     # `text` is already a bare sound at the isolated stage.
     if word == sound or (sound == "th" and word.startswith("th")):

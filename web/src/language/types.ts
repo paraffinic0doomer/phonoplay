@@ -34,7 +34,7 @@
  * designed outcome rather than an error. They get the plain English ordering
  * instead of a bridge, because inventing one would be worse than having none.
  */
-export type LanguageCode = 'en' | 'bn' | 'es'
+export type LanguageCode = 'en' | 'bn' | 'es' | 'ja'
 
 /** Where in a word a sound occurs. */
 export type WordPosition = 'initial' | 'medial' | 'final'
@@ -115,6 +115,9 @@ export type PhonemeKnowledge = PhonemeProfile
 
 /** A language PhonoPlay knows something about. */
 export interface LanguageProfile {
+  /** Stable code used in settings, API evidence, and future pair routing. */
+  languageCode: LanguageCode
+  /** @deprecated Compatibility alias for existing callers. Use languageCode. */
   code: LanguageCode
   /** English name, for interface copy. */
   name: string
@@ -133,7 +136,23 @@ export interface LanguageProfile {
   targetNote?: string
   /** Phoneme ids this language contributes to the knowledge base. */
   phonemes: string[]
+  /** Complete sound knowledge for a target language; empty when not supported. */
+  phonemeInventory: PhonemeProfile[]
+  /** Curated examples across the inventory, never generated at runtime. */
+  examples: PhonemeExample[]
+  /** Prompts that the current acoustic analyser can actually assess. */
+  assessmentPrompts: AssessmentPrompt[]
+  /** Exercise shapes with content and measurement support for this target. */
+  supportedExerciseTypes: SupportedExerciseType[]
 }
+
+export type SupportedExerciseType =
+  | 'isolation'
+  | 'syllable'
+  | 'word'
+  | 'minimal_pair'
+  | 'phrase'
+  | 'sentence'
 
 /**
  * A familiar sound to start from, when the learner's first language has one

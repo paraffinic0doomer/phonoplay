@@ -123,7 +123,10 @@ export function MouthDiagram({ sound, className = '' }: MouthDiagramProps) {
 
       <Airflow sound={sound} />
       </svg>
-      <p className="mt-2 text-center text-[0.68rem] leading-snug text-ink-faint">{CUE[sound]}</p>
+      <p className="mt-2 text-center text-[0.68rem] leading-snug text-ink-faint">
+        <span className="block font-medium">Approximate pronunciation guide</span>
+        {CUE[sound]}
+      </p>
     </div>
   )
 }

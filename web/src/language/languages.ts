@@ -1,4 +1,4 @@
-import { ENGLISH_PHONEMES } from './english.ts'
+import { ENGLISH_LANGUAGE_PROFILE } from './english.ts'
 import type { LanguageCode, LanguagePairProfile, LanguageProfile } from './types.ts'
 
 /**
@@ -25,23 +25,15 @@ import type { LanguageCode, LanguagePairProfile, LanguageProfile } from './types
  */
 
 export const LANGUAGES: Record<LanguageCode, LanguageProfile> = {
-  en: {
-    code: 'en',
-    name: 'English',
-    nativeName: 'English',
-    script: 'Latin',
-    direction: 'ltr',
-    canBeNative: true,
-    canBeTarget: true,
-    phonemes: ENGLISH_PHONEMES.map((p) => p.id),
-  },
+  en: ENGLISH_LANGUAGE_PROFILE,
   es: {
+    languageCode: 'es',
     code: 'es',
     name: 'Spanish',
     nativeName: 'Español',
     script: 'Latin',
     direction: 'ltr',
-    canBeNative: true,
+    canBeNative: false,
     canBeTarget: false,
     targetNote:
       'PhonoPlay does not measure Spanish pronunciation yet — the acoustic ' +
@@ -53,8 +45,10 @@ export const LANGUAGES: Record<LanguageCode, LanguageProfile> = {
     // ordering. That is the honest behaviour: an invented anchor would be
     // worse than none.
     phonemes: [],
+    phonemeInventory: [], examples: [], assessmentPrompts: [], supportedExerciseTypes: [],
   },
   bn: {
+    languageCode: 'bn',
     code: 'bn',
     name: 'Bangla',
     nativeName: 'বাংলা',
@@ -71,6 +65,13 @@ export const LANGUAGES: Record<LanguageCode, LanguageProfile> = {
     // Bangla contributes anchors rather than practice targets, so it lists no
     // phonemes of its own in the knowledge base yet.
     phonemes: [],
+    phonemeInventory: [], examples: [], assessmentPrompts: [], supportedExerciseTypes: [],
+  },
+  ja: {
+    languageCode: 'ja', code: 'ja', name: 'Japanese', nativeName: '日本語', script: 'Japanese', direction: 'ltr',
+    canBeNative: false, canBeTarget: false,
+    targetNote: 'Japanese pronunciation is not available yet. It needs its own acoustic references and curated practice material.',
+    phonemes: [], phonemeInventory: [], examples: [], assessmentPrompts: [], supportedExerciseTypes: [],
   },
 }
 

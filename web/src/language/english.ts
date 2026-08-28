@@ -1,4 +1,4 @@
-import type { AssessmentPrompt, PhonemeProfile } from './types.ts'
+import type { AssessmentPrompt, LanguageProfile, PhonemeProfile } from './types.ts'
 
 /**
  * English phoneme knowledge, hand-authored.
@@ -253,3 +253,26 @@ export const ENGLISH_ASSESSMENT_PROMPTS: AssessmentPrompt[] = [
     instruction: 'Say the word once, with the tongue at your top teeth.',
   },
 ]
+
+/**
+ * The one complete target-language configuration in the MVP.
+ *
+ * Adding Spanish or another target later means adding an equally complete
+ * profile with its own acoustic references and prompts, then marking it as a
+ * target in `LANGUAGES`. A language name alone never enables practice.
+ */
+export const ENGLISH_LANGUAGE_PROFILE: LanguageProfile = {
+  languageCode: 'en',
+  code: 'en',
+  name: 'English',
+  nativeName: 'English',
+  script: 'Latin',
+  direction: 'ltr',
+  canBeNative: true,
+  canBeTarget: true,
+  phonemes: ENGLISH_PHONEMES.map((phoneme) => phoneme.id),
+  phonemeInventory: ENGLISH_PHONEMES,
+  examples: ENGLISH_PHONEMES.flatMap((phoneme) => phoneme.examples),
+  assessmentPrompts: ENGLISH_ASSESSMENT_PROMPTS,
+  supportedExerciseTypes: ['isolation', 'syllable', 'word', 'minimal_pair', 'phrase', 'sentence'],
+}

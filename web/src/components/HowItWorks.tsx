@@ -69,12 +69,12 @@ export function HowItWorks({ compact = false }: { compact?: boolean }) {
                   <span className="font-semibold text-ink">{stage.label}</span>
                   <span
                     className={`label-mono ml-2 rounded-full px-2 py-0.5 ${
-                      stage.leavesDevice
+                      stage.audioLeavesBrowser
                         ? 'bg-warn/12 text-warn'
                         : 'bg-good/12 text-good'
                     }`}
                   >
-                    {stage.leavesDevice ? 'sent to a third party' : 'stays on the server'}
+                    {stage.audioLeavesBrowser ? 'audio leaves your browser' : 'no audio is sent'}
                   </span>
                   <span className="mt-1 block">{stage.detail}</span>
                 </li>

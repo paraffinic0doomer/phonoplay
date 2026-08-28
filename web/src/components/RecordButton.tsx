@@ -82,7 +82,7 @@ function BlockedIcon() {
 const HINTS: Record<RecordStatus, string> = {
   idle: 'Getting ready…',
   'requesting-permission': 'Allow the microphone in your browser',
-  ready: 'Tap the microphone, or press R',
+  ready: 'Tap the microphone, or press Enter when it is focused',
   recording: '',
   review: 'Listen back, then choose below',
   processing: 'Working…',

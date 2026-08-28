@@ -141,9 +141,9 @@ const BANK: Bank = {
       { text: 'three', instruction: 'Say the word once.' },
     ],
     minimal_pair: [
-      { text: 'think', contrast: 'sink', instruction: 'Say the first word only.' },
-      { text: 'thing', contrast: 'sing', instruction: 'Say the first word only.' },
-      { text: 'thin', contrast: 'fin', instruction: 'Say the first word only.' },
+      { text: 'thin', contrast: 'tin', instruction: 'Say the first word only.' },
+      { text: 'thick', contrast: 'tick', instruction: 'Say the first word only.' },
+      { text: 'three', contrast: 'tree', instruction: 'Say the first word only.' },
     ],
     phrase: [
       { text: 'Think three thoughts', instruction: 'Say the whole phrase at a comfortable pace.' },

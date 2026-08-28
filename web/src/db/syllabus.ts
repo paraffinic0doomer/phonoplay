@@ -47,6 +47,7 @@ export async function getActivePlan(): Promise<{
 export async function createSyllabus(input: {
   title: string
   targetLanguage: string
+  adaptationReason?: string
   items: NewSyllabusItem[]
 }): Promise<{ syllabus: Syllabus; items: SyllabusItem[] }> {
   return db.transaction('rw', db.syllabi, db.syllabusItems, async () => {
@@ -63,6 +64,7 @@ export async function createSyllabus(input: {
       id: newId(),
       version,
       title: input.title,
+      adaptationReason: input.adaptationReason,
       targetLanguage: input.targetLanguage,
       status: 'active',
       createdAt: timestamp,

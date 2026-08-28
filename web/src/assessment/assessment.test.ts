@@ -47,13 +47,16 @@ describe('the plan', () => {
     }
   })
 
-  it('measures the same words in both modes, so the profiles compare', () => {
+  it('uses a compact subset of the validated standard words in accessibility mode', () => {
     const words = (mode: 'standard' | 'accessibility') =>
       planFor(mode)
         .filter((task) => task.kind === 'word')
         .map((task) => task.text)
         .sort()
-    assert.deepEqual(words('accessibility'), words('standard'))
+    const standard = words('standard')
+    const accessibility = words('accessibility')
+    assert.equal(accessibility.length, ASSESSED_PHONEMES.length)
+    for (const word of accessibility) assert.ok(standard.includes(word))
   })
 
   it('never targets a sound mid-word', () => {
@@ -66,38 +69,11 @@ describe('the plan', () => {
     }
   })
 
-  it('breaks accessibility mode into more, smaller steps', () => {
-    assert.ok(accessibilityPlan().length > standardPlan().length)
-  })
-
-  it('uses every task shape in accessibility mode', () => {
-    const kinds = new Set(accessibilityPlan().map((task) => task.kind))
-    for (const kind of [
-      'listen',
-      'repeat-sound',
-      'word',
-      'minimal-pair',
-      'phrase',
-      'sentence',
-    ]) {
-      assert.ok(kinds.has(kind as never), `missing ${kind}`)
-    }
-  })
-
-  it('never measures a sound said on its own', () => {
-    // An approximant is identified by its transition into a following vowel.
-    // There is no vowel in an isolated /r/, so there is nothing to measure.
-    for (const task of accessibilityPlan()) {
-      if (task.kind === 'repeat-sound' || task.kind === 'listen') {
-        assert.equal(task.measured, false, task.id)
-      }
-    }
-  })
-
-  it('never scores a perception task as if it were speech', () => {
-    for (const task of accessibilityPlan()) {
-      if (task.kind === 'minimal-pair') assert.equal(task.measured, false)
-    }
+  it('keeps the accessibility baseline to four real recordings', () => {
+    const plan = accessibilityPlan()
+    assert.equal(plan.length, ASSESSED_PHONEMES.length)
+    assert.equal(measuredCount(plan), ASSESSED_PHONEMES.length)
+    assert.ok(plan.every((task) => task.kind === 'word' && task.measured))
   })
 
   it('gives every task something to say and a way to say it', () => {
@@ -118,7 +94,7 @@ describe('the plan', () => {
 
   it('counts its own measured tasks', () => {
     assert.equal(measuredCount(standardPlan()), standardPlan().length)
-    assert.ok(measuredCount(accessibilityPlan()) < accessibilityPlan().length)
+    assert.equal(measuredCount(accessibilityPlan()), accessibilityPlan().length)
   })
 })
 

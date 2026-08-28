@@ -6,7 +6,10 @@
   "extends": "./tsconfig.app.json",
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
-    "types": ["node"],
+    /* `vite/client` alongside Node's: the modules under test are browser code
+       and reach for import.meta.env, which is Vite's. Omitting it would mean
+       typechecking application source against a platform it never runs on. */
+    "types": ["node", "vite/client"],
     /* DOM stays available: the modules under test (the recorder above all)
        are browser code and legitimately reference MediaRecorder, AudioContext
        and Navigator. Dropping DOM here would only mean typechecking them
@@ -24,7 +27,9 @@
     "src/lib/recorder.ts",
     "src/lib/errorCopy.ts",
     "src/onboarding/**/*.ts",
-    "src/assessment/**/*.ts"
+    "src/assessment/**/*.ts",
+    "src/contrast/**/*.ts",
+    "src/practice/**/*.ts"
   ],
   "exclude": []
 }

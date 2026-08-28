@@ -65,10 +65,10 @@ measurements, never the audio.
 Where audio actually goes, per stage — stated separately because the answers
 genuinely differ:
 
-| Stage | Leaves the server? | What happens |
+| Stage | Does audio leave the browser? | What happens |
 |---|---|---|
-| **Pronunciation analysis** | No | Runs locally. Measured, then discarded when the request ends. |
-| **Speech recognition** | **Yes** | Sent to **Groq**, a third-party speech-to-text service. This is the only step that sends audio anywhere. |
+| **Pronunciation analysis** | **Yes** | Sent to the PhonoPlay analysis service, measured, then discarded when the request ends. |
+| **Speech recognition** | **Yes** | The older speech-recognition flow sends audio to **Groq**, a third-party service for a transcript. The transcript is never a pronunciation score. |
 | **Practice material** | No | The generator receives text only — the sound, the stage, the language. Never a recording, never a score. |
 
 To keep audio entirely on your own infrastructure, set `STT_PROVIDER=fake`.
@@ -83,17 +83,15 @@ even when the request raises.
 
 ## What we store
 
-An opaque identifier your browser generates, and the outcome of each attempt.
+Practice settings and derived outcomes are stored in this browser only.
 
 **Not collected:** name, email, address, phone number, age, date of birth,
 gender, school, location, or any account. None of it is asked for, and there
-is no field for it. The learner id is a random string in `localStorage`; it
-exists so closing the tab does not erase your progress, and it is linked to
-nothing.
+is no field for it.
 
-The database has **no column audio or a transcript could occupy**, so no
-future change can start storing recordings by accident. Tests assert the exact
-column set.
+The database has **no raw-audio field**, so recordings cannot be persisted by
+the normal learner-data path. A transcript may be kept locally by the older
+speech-recognition screen as context, never as pronunciation evidence.
 
 **Sensitive characteristics are not inferred.** PhonoPlay does not estimate
 age, sex, accent, or origin, and does not report anything that would invite

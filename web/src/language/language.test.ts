@@ -20,16 +20,13 @@ import { ENGLISH_PHONEMES } from './english.ts'
 describe('language lookup', () => {
   test('lists the first languages onboarding offers', () => {
     const codes = svc.getSupportedLanguages().map((l) => l.code).sort()
-    assert.deepEqual(codes, ['bn', 'en', 'es'])
+    assert.deepEqual(codes, ['bn', 'en'])
   })
 
-  test('Spanish is selectable but has no researched bridge yet', () => {
-    // Selectable as a first language; no anchors, because none have been
-    // researched. The assessment falls back to the plain English ordering
-    // rather than being handed an invented one.
+  test('future languages are registered but not offered before their profiles are complete', () => {
     const spanish = svc.getLanguage('es')
     assert.ok(spanish)
-    assert.equal(spanish.canBeNative, true)
+    assert.equal(spanish.canBeNative, false)
     assert.equal(spanish.canBeTarget, false)
     assert.equal(svc.getLanguagePairProfile('es', 'en'), undefined)
   })
@@ -49,6 +46,16 @@ describe('language lookup', () => {
     // Not a ranking. There is no Bangla acoustic reference data, so there is
     // nothing to measure a Bangla target against.
     assert.deepEqual(svc.getTargetLanguages().map((l) => l.code), ['en'])
+  })
+
+  test('keeps target configuration together in the language profile', () => {
+    const english = svc.getLanguage('en')
+    assert.ok(english)
+    assert.equal(english.languageCode, 'en')
+    assert.ok(english.phonemeInventory.length >= 4)
+    assert.ok(english.examples.length > 0)
+    assert.ok(english.assessmentPrompts.length > 0)
+    assert.ok(english.supportedExerciseTypes.includes('minimal_pair'))
   })
 
   test('Bangla is native-capable but not a target, and says why', () => {

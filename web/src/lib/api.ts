@@ -15,6 +15,7 @@ import type {
   Exercise,
   HealthStatus,
   Prompt,
+  PronunciationMeasurement,
   SoundId,
   TargetSound,
   TranscriptionResponse,
@@ -30,9 +31,8 @@ import {
 
 const BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
-/** Defaults on in dev, off in production builds. */
-export const USE_FIXTURES =
-  (import.meta.env.VITE_USE_FIXTURES ?? String(import.meta.env.DEV)) === 'true'
+/** Fixtures are deliberately opt-in for a clearly labelled development fallback. */
+export const USE_FIXTURES = import.meta.env.VITE_USE_FIXTURES === 'true'
 
 export class ApiError extends Error {
   code: ApiErrorCode
@@ -63,16 +63,39 @@ class NotImplemented extends Error {}
  */
 const UNREACHABLE_COOLDOWN_MS = 30_000
 let unreachableUntil = 0
+const REQUEST_TIMEOUT_MS = 20_000
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response
+  const controller = init?.signal ? null : new AbortController()
+  let timedOut = false
+  const timer = controller
+    ? window.setTimeout(() => {
+        timedOut = true
+        controller.abort()
+      }, REQUEST_TIMEOUT_MS)
+    : null
   try {
-    response = await fetch(`${BASE}${path}`, init)
+    response = await fetch(`${BASE}${path}`, {
+      ...init,
+      signal: init?.signal ?? controller?.signal,
+    })
   } catch (cause) {
     // An aborted request is a timeout, handled by the caller — not a sign
     // that the service is missing.
-    if (cause instanceof DOMException && cause.name === 'AbortError') throw cause
+    if (cause instanceof DOMException && cause.name === 'AbortError') {
+      if (timedOut) {
+        throw new ApiError(
+          'NETWORK_UNAVAILABLE',
+          'The service took too long to respond. Check your connection and try again.',
+          true,
+        )
+      }
+      throw cause
+    }
     throw new Unreachable(path)
+  } finally {
+    if (timer !== null) window.clearTimeout(timer)
   }
 
   if (!response.ok) {
@@ -303,6 +326,41 @@ export function submitAttempt(input: SubmitAttemptInput): Promise<AttemptResult>
   )
 }
 
+/**
+ * Everything the generator is told about the learner.
+ *
+ * Assembled from the learner model in IndexedDB and sent with the request:
+ * the server holds no learner state, so it cannot look any of this up.
+ */
+export interface ExerciseEvidence {
+  target_phoneme: string
+  mastery: number | null
+  confidence: number | null
+  recent_scores: number[]
+  current_stage: string
+  learning_mode: string
+  exercise_type: string
+  contrast_accuracy: number | null
+  native_language: string
+  target_language: string
+}
+
+/**
+ * POST /api/exercises — practice written around measured evidence.
+ *
+ * The generator never returns a number. Every field it produces is a string,
+ * and the server validates the shape and the wording before it comes back, so
+ * a rejected generation arrives as the deterministic bank with
+ * `source: "fallback"` rather than as an error.
+ */
+export function generateExerciseFor(evidence: ExerciseEvidence): Promise<Exercise> {
+  return request<Exercise>('/exercises', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ evidence }),
+  })
+}
+
 export function generateExercise(attempt: AttemptResult): Promise<Exercise> {
   return withFixture(
     () =>
@@ -325,19 +383,7 @@ export function generateExercise(attempt: AttemptResult): Promise<Exercise> {
  * service is unavailable, and the UI simply omits the panel.
  */
 /** What POST /api/pronunciation returns. Stage 2 only — never a transcript. */
-export interface PronunciationMeasurement {
-  target_phoneme: string
-  estimated_match: string | null
-  similarity_score: number
-  confidence: number
-  acoustic_features: Record<string, number>
-  feedback_code: string
-  /** "assessed" | "insufficient_confidence" | "unusable_audio". */
-  status: string
-  assessed: boolean
-  message: string
-  hint?: string | null
-}
+export type { PronunciationMeasurement } from '../types/api'
 
 /**
  * POST /api/pronunciation — the acoustic measurement, on its own.
@@ -377,6 +423,15 @@ export async function measurePronunciation(input: {
       body: form,
       signal: controller.signal,
     })
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new ApiError(
+        'UPLOAD_TIMEOUT',
+        'The analysis took too long. Check your connection and try again.',
+        true,
+      )
+    }
+    throw error
   } finally {
     window.clearTimeout(timer)
   }

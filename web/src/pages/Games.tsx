@@ -1,110 +1,66 @@
-import { useMemo, useState, type CSSProperties } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { SOUND_LIST, SOUND_PROFILES } from '../data/sounds'
-import type { SoundId } from '../types/api'
-import { useSession } from '../state/session'
+import type { SoundId, PronunciationMeasurement } from '../types/api'
+import type { LearningMode, PhonemeProfile } from '../db'
+import { getLearningMode, getProfile, recordPracticeAttempt } from '../db'
+import { adaptSyllabus } from '../adaptive/syllabus'
+import type { Adaptation } from '../adaptive/syllabus'
+import { MAX_CLIP_MS } from '../lib/recorder'
+import type { RecordingClip } from '../lib/recorder'
+import { measurePronunciation } from '../lib/api'
+import { useCapture } from '../state/useCapture'
+import { RecordButton, useElapsed } from '../components/RecordButton'
+import type { RecordStatus } from '../components/RecordButton'
+import { RecordingReview } from '../components/RecordingReview'
+import { ErrorNotice } from '../components/ErrorNotice'
 import { Button, ButtonLink } from '../components/Button'
 import { MouthDiagram } from '../components/MouthDiagram'
+import { PHONEME_LABEL } from '../practice/material'
 
-type Mode = 'hunt' | 'sprint' | 'challenge'
-
-const HUNT_WORDS: Record<SoundId, string[]> = {
-  s: ['sun', 'moon', 'sock', 'leaf'],
-  r: ['rabbit', 'leaf', 'red', 'sun'],
-  l: ['lion', 'rain', 'leaf', 'moon'],
-  th: ['thumb', 'red', 'three', 'leaf'],
+const CHALLENGES: Record<SoundId, string[]> = {
+  s: ['sun', 'sock', 'sing', 'sink', 'seven'], r: ['red', 'rain', 'rabbit', 'rake', 'ring'],
+  l: ['light', 'lake', 'lion', 'lace', 'leaf'], th: ['think', 'thank', 'three', 'thin', 'thumb'],
 }
+interface Run { assessed: boolean; similarity: number | null }
+type Phase = 'ready' | 'review' | 'analysing' | 'between' | 'complete'
 
-const CHALLENGES: Record<SoundId, string> = {
-  s: 'Seven silly snakes slide slowly.',
-  r: 'Red rabbits run around the road.',
-  l: 'Lily likes little lemon leaves.',
-  th: 'Three thin threads twist together.',
-}
-
-function ModeCard({ mode, active, title, detail, onClick }: { mode: Mode; active: boolean; title: string; detail: string; onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick} className={`text-left transition-transform hover:-translate-y-1 ${active ? 'sound-tint-strong' : 'bg-paper'} panel p-5`}>
-      <span className="label-mono text-ink-faint">{mode === 'hunt' ? '01' : mode === 'sprint' ? '02' : '03'}</span>
-      <h2 className="mt-3 text-xl font-bold text-ink">{title}</h2>
-      <p className="mt-2 text-sm leading-relaxed text-ink-soft">{detail}</p>
-    </button>
-  )
+function Reward({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return <div className="rounded-2xl bg-paper-2 px-4 py-3"><p className="label-mono text-ink-faint">{label}</p><p className="mt-1 text-2xl font-bold tabular-nums text-ink">{value}</p><p className="mt-1 text-xs text-ink-faint">{detail}</p></div>
 }
 
 export function Games() {
-  const navigate = useNavigate()
-  const { state, loadPrompt } = useSession()
-  const [sound, setSound] = useState<SoundId>('s')
-  const [mode, setMode] = useState<Mode>('hunt')
-  const [startedWith, setStartedWith] = useState(state.attempts.length)
-  const profile = SOUND_PROFILES[sound]
-  const newAttempts = Math.max(0, state.attempts.length - startedWith)
-  const huntWords = useMemo(() => HUNT_WORDS[sound], [sound])
-  const sprintResults = state.attempts.slice(startedWith).filter((attempt) => attempt.targetSound === sound)
-  const sprintScores = sprintResults
-    .filter((attempt) => attempt.result.assessed !== false)
-    .map((attempt) => attempt.result.scores.overall)
-  const sprintAccuracy = sprintScores.length ? Math.round(sprintScores.reduce((sum, score) => sum + score, 0) / sprintScores.length) : 0
-  const sprintConsistency = sprintScores.length > 1
-    ? Math.max(0, Math.round(100 - Math.sqrt(sprintScores.reduce((sum, score) => sum + (score - sprintAccuracy) ** 2, 0) / sprintScores.length)))
-    : 0
-  const allSoundScores = state.attempts.filter((attempt) => attempt.targetSound === sound).map((attempt) => attempt.result.scores.overall)
-  const beforeScore = allSoundScores[0] ?? 0
-  const afterScore = allSoundScores.at(-1) ?? 0
-
-  const beginRound = (word?: string) => {
-    setStartedWith(state.attempts.length)
-    const prompt = state.attempts.find((attempt) => attempt.promptText === word)?.result.prompt
-    if (prompt) {
-      navigate(`/practice/${sound}?prompt=${encodeURIComponent(prompt.id)}`)
-      return
-    }
-    void loadPrompt(sound, { fresh: true })
-    navigate(`/practice/${sound}`)
-  }
-
-  const resetRun = () => setStartedWith(state.attempts.length)
-
-  return (
-    <div style={{ '--sound': profile.color } as CSSProperties} className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-      <header className="max-w-3xl">
-        <span className="label-mono text-ink-faint">Sound Lab · Play</span>
-        <h1 className="mt-3 text-4xl font-bold tracking-tight text-ink sm:text-6xl">Make the target sound the game.</h1>
-        <p className="mt-4 max-w-2xl text-lg leading-relaxed text-ink-soft">Choose a mode, practise with the microphone, and build a clearer sound one real attempt at a time.</p>
-      </header>
-
-      <section className="mt-9 flex flex-wrap items-center gap-2" aria-label="Target sound">
-        {SOUND_LIST.map((item) => (
-          <button key={item.id} type="button" onClick={() => setSound(item.id)} className={`rounded-full px-4 py-2 font-mono text-sm font-semibold ${sound === item.id ? 'sound-bg text-white' : 'bg-paper-2 text-ink-soft'}`}>
-            {item.display}
-          </button>
-        ))}
-      </section>
-
-      <div className="mt-6 grid gap-4 md:grid-cols-3">
-        <ModeCard mode="hunt" active={mode === 'hunt'} title="Sound Hunt" detail="Find the words that carry the target, then pronounce one to move the hunt forward." onClick={() => setMode('hunt')} />
-        <ModeCard mode="sprint" active={mode === 'sprint'} title="Sound Sprint" detail="Work through a 30-second sequence. Watch accuracy and consistency emerge from your attempts." onClick={() => setMode('sprint')} />
-        <ModeCard mode="challenge" active={mode === 'challenge'} title="Challenge Mode" detail="Take on a focused phrase built around the target sound and your current practice level." onClick={() => setMode('challenge')} />
-      </div>
-
-      <section className="panel mt-6 overflow-hidden p-0">
-        <div className="sound-tint flex flex-wrap items-center justify-between gap-5 px-6 py-6 sm:px-8">
-          <div className="flex items-center gap-5">
-            <div className="w-20 shrink-0 sound-text"><MouthDiagram sound={sound} /></div>
-            <div><span className="label-mono text-ink-faint">Target</span><h2 className="mt-1 font-mono text-4xl font-bold text-ink">{profile.display}</h2><p className="mt-1 text-sm text-ink-soft">{profile.description}</p></div>
-          </div>
-          <span className="label-mono text-ink-faint">{newAttempts}/3 rounds complete</span>
-        </div>
-
-        {mode === 'hunt' && <div className="px-6 py-7 sm:px-8"><h3 className="text-2xl font-bold text-ink">Which words have {profile.display}?</h3><p className="mt-2 text-sm text-ink-soft">Choose a target word to practise. The microphone decides how close the sound came.</p><div className="mt-6 grid gap-3 sm:grid-cols-2">{huntWords.map((word) => <Button key={word} variant="outline" size="lg" className="justify-start" onClick={() => beginRound(word)}>Say “{word}”</Button>)}</div></div>}
-
-        {mode === 'sprint' && <div className="px-6 py-7 sm:px-8"><div className="flex flex-wrap items-end justify-between gap-4"><div><h3 className="text-2xl font-bold text-ink">30-second Sound Sprint</h3><p className="mt-2 max-w-xl text-sm text-ink-soft">Say three target words at a comfortable pace. Every attempt is feedback, never a penalty.</p></div><span className="rounded-full bg-paper-2 px-4 py-2 font-mono text-sm text-ink">00:30</span></div><div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3"><div><span className="label-mono block text-ink-faint">Accuracy</span><strong className="text-2xl text-ink">{sprintAccuracy}%</strong></div><div><span className="label-mono block text-ink-faint">Consistency</span><strong className="text-2xl text-ink">{sprintConsistency || '—'}{sprintConsistency ? '%' : ''}</strong></div><div><span className="label-mono block text-ink-faint">Rounds</span><strong className="text-2xl text-ink">{sprintResults.length}/3</strong></div></div><div className="mt-6 flex flex-wrap gap-3">{huntWords.slice(0, 3).map((word) => <Button key={word} variant="sound" onClick={() => beginRound(word)}>Start with “{word}”</Button>)}</div></div>}
-
-        {mode === 'challenge' && <div className="px-6 py-7 sm:px-8"><span className="label-mono text-ink-faint">Challenge phrase</span><h3 className="mt-3 max-w-3xl text-3xl font-bold leading-tight text-ink sm:text-4xl">“{CHALLENGES[sound]}”</h3><p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-soft">Keep the highlighted sound clear at natural speed. You can return to a simpler word at any time.</p><div className="mt-6 flex flex-wrap gap-3"><Button variant="sound" size="lg" onClick={() => beginRound(huntWords[0])}>Practise the challenge</Button><Button variant="ghost" onClick={() => setMode('hunt')}>Try an easier word</Button></div></div>}
-      </section>
-
-      {newAttempts >= 3 && <section className="panel animate-rise mt-6 border-2 border-[var(--sound)] p-6 sm:p-8"><span className="label-mono sound-text">Session complete</span><h2 className="mt-2 text-4xl font-bold text-ink">Sound Mastery</h2><div className="mt-5 grid max-w-md grid-cols-2 gap-3"><div className="bg-paper-2 p-4"><span className="label-mono block text-ink-faint">Before</span><strong className="mt-1 block text-3xl text-ink">{Math.round(beforeScore)}%</strong></div><div className="sound-tint-strong p-4"><span className="label-mono block text-ink-faint">After</span><strong className="mt-1 block text-3xl text-ink">{Math.round(afterScore)}%</strong></div></div><p className="mt-4 max-w-xl text-[0.95rem] leading-relaxed text-ink-soft">Your measured target-sound score changed by {Math.round(afterScore - beforeScore)} points across the session. Keep the same cue as you move to the next level.</p><div className="mt-5 flex flex-wrap gap-3"><ButtonLink to="/progress" variant="sound">See progress</ButtonLink><Button variant="ghost" onClick={resetRun}>Play another round</Button></div></section>}
-    </div>
-  )
+  const [sound, setSound] = useState<SoundId>('th')
+  const [mode, setMode] = useState<LearningMode | null>(null)
+  const [challenge, setChallenge] = useState(0); const [runs, setRuns] = useState<Run[]>([])
+  const [phase, setPhase] = useState<Phase>('ready'); const [clip, setClip] = useState<RecordingClip | null>(null)
+  const [capturing, setCapturing] = useState(false); const [level, setLevel] = useState(0)
+  const [error, setError] = useState<{ code: string; message: string; retryable: boolean } | null>(null)
+  const [adaptation, setAdaptation] = useState<Adaptation | null>(null); const [profileAfter, setProfileAfter] = useState<PhonemeProfile | null>(null)
+  const alive = useRef(true); const elapsed = useElapsed(capturing); const profile = SOUND_PROFILES[sound]; const word = CHALLENGES[sound][challenge]
+  useEffect(() => { alive.current = true; void getLearningMode().then(setMode); return () => { alive.current = false } }, [])
+  const { recorderRef, start, stop, support } = useCapture({ onRecordingStart: () => { setError(null); setCapturing(true) }, onClip: (recorded) => { setCapturing(false); setClip(recorded); setPhase('review') }, onError: (failure) => { setCapturing(false); setError(failure) } })
+  useEffect(() => { if (!capturing) return; let frame = 0; const tick = () => { setLevel(recorderRef.current?.level() ?? 0); frame = requestAnimationFrame(tick) }; frame = requestAnimationFrame(tick); return () => cancelAnimationFrame(frame) }, [capturing, recorderRef])
+  useEffect(() => { if (!capturing) return; const id = window.setTimeout(() => void stop(), MAX_CLIP_MS); return () => window.clearTimeout(id) }, [capturing, stop])
+  const reset = useCallback((nextSound = sound) => { setSound(nextSound); setChallenge(0); setRuns([]); setClip(null); setError(null); setAdaptation(null); setProfileAfter(null); setPhase('ready') }, [sound])
+  const analyse = useCallback(async () => {
+    if (!clip) return; setPhase('analysing'); setError(null)
+    try {
+      const measured: PronunciationMeasurement = await measurePronunciation({ clip, targetSound: sound, expectedText: word })
+      if (!alive.current) return
+      await recordPracticeAttempt({ phoneme: sound, prompt: word, transcript: null, similarityScore: measured.assessed ? measured.similarity_score : null, confidence: measured.assessed ? measured.confidence : null, estimatedPhoneme: measured.estimated_match, feedbackCode: measured.feedback_code, assessed: measured.assessed, duration: clip.durationS })
+      const updated = await getProfile(sound); const nextRuns = [...runs, { assessed: measured.assessed, similarity: measured.assessed ? measured.similarity_score : null }]
+      setRuns(nextRuns); setProfileAfter(updated); setClip(null)
+      if (nextRuns.length === 5) { setAdaptation(await adaptSyllabus(updated)); setPhase('complete') } else setPhase('between')
+    } catch (cause) { if (!alive.current) return; setError({ code: cause && typeof cause === 'object' && 'code' in cause ? String((cause as { code: unknown }).code) : 'UNKNOWN', message: cause instanceof Error ? cause.message : 'Could not measure that recording.', retryable: true }); setPhase('review') }
+  }, [clip, sound, word, runs])
+  const recordStatus: RecordStatus = support !== 'ok' ? 'blocked' : phase === 'analysing' ? 'processing' : phase === 'review' ? 'review' : capturing ? 'recording' : 'ready'
+  const assessed = runs.filter((run) => run.assessed && run.similarity !== null).map((run) => run.similarity as number); const before = assessed[0] ?? null; const after = assessed.at(-1) ?? null; const improved = before !== null && after !== null && after > before
+  if (!mode) return <main className="mx-auto max-w-3xl px-5 py-16"><p className="label-mono text-ink-faint">Preparing Sound Sprint…</p></main>
+  return <main style={{ '--sound': profile.color } as CSSProperties} className="mx-auto max-w-3xl px-5 py-10 sm:py-14">
+    <header><p className="label-mono text-ink-faint">Play · Sound Sprint</p><h1 className="mt-3 text-4xl font-bold tracking-tight text-ink sm:text-5xl">Five focused tries. One sound at a time.</h1><p className="mt-3 max-w-2xl text-lg leading-relaxed text-ink-soft">Every completed recording earns progress. Similarity changes what comes next; it never takes rewards away.</p></header>
+    <div className="mt-7 flex flex-wrap gap-2" aria-label="Target sound">{SOUND_LIST.map((item) => <button key={item.id} type="button" onClick={() => reset(item.id)} className={`rounded-full px-4 py-2 font-mono text-sm font-semibold ${sound === item.id ? 'sound-bg text-white' : 'bg-paper-2 text-ink-soft'}`}>{item.display}</button>)}</div>
+    <section className="panel mt-6 overflow-hidden p-0"><div className="sound-tint flex flex-wrap items-center justify-between gap-4 px-5 py-5 sm:px-7"><div className="flex items-center gap-4"><span className="sound-text w-18 shrink-0"><MouthDiagram sound={sound} /></span><div><p className="label-mono text-ink-faint">Target sound</p><h2 className="mt-1 font-mono text-4xl font-bold text-ink">{profile.display}</h2></div></div><span className="rounded-full bg-paper px-4 py-2 font-mono text-sm font-semibold text-ink">{Math.min(challenge + 1, 5)} / 5</span></div><div className="grid gap-3 px-5 py-5 sm:grid-cols-3 sm:px-7"><Reward label="XP" value={`${runs.length * 10} XP`} detail="10 XP for each completed try" /><Reward label="Streak" value={`${runs.length} / 5`} detail="a steady set of practice tries" /><Reward label="Mastery badge" value={runs.length === 5 ? 'Earned' : 'In progress'} detail={runs.length === 5 ? 'Five focused recordings complete' : 'Complete all five tries'} /></div></section>
+    {phase !== 'complete' && <section className="panel mt-6 p-6 sm:p-7"><p className="label-mono text-ink-faint">Challenge {challenge + 1} of 5</p><p className="mt-3 font-mono text-5xl font-bold sound-text">{word}</p><p className="mt-3 text-sm leading-relaxed text-ink-soft">Say the word once at a comfortable pace. {mode === 'accessibility' ? 'There is no timer—take the space you need.' : 'This is a focused set, not a race.'}</p>{error && <div className="mt-5"><ErrorNotice error={error} onDismiss={() => setError(null)} onRetry={clip ? () => void analyse() : undefined} retryLabel="Send again" /></div>}{phase === 'review' && clip ? <div className="mt-6"><RecordingReview clip={clip} busy={false} onUse={() => void analyse()} onDiscard={() => { setClip(null); setPhase('ready') }} /></div> : phase === 'between' ? <div className="mt-7"><p className="text-lg font-semibold text-ink">Nice work—your XP is yours either way.</p><Button className="mt-4" variant="sound" size="lg" onClick={() => { setChallenge((value) => value + 1); setPhase('ready') }}>Next challenge</Button></div> : <div className="mt-8 flex flex-col items-center"><RecordButton status={recordStatus} level={capturing ? level : 0} elapsedMs={elapsed} maxMs={MAX_CLIP_MS} onStart={() => void start()} onStop={() => void stop()} /></div>}</section>}
+    {phase === 'complete' && <section className="panel animate-rise mt-6 border-2 border-[var(--sound)] p-6 sm:p-8"><p className="label-mono sound-text">Session complete · Mastery badge earned</p><h2 className="mt-3 text-4xl font-bold text-ink">{improved ? 'Sound improved' : 'Five focused tries complete'}</h2><div className="mt-6 grid max-w-md grid-cols-2 gap-3"><div className="bg-paper-2 p-4"><p className="label-mono text-ink-faint">Before</p><p className="mt-1 text-3xl font-bold tabular-nums text-ink">{before === null ? '—' : `${Math.round(before * 100)}%`}</p></div><div className="sound-tint-strong p-4"><p className="label-mono text-ink-faint">After</p><p className="mt-1 text-3xl font-bold tabular-nums text-ink">{after === null ? '—' : `${Math.round(after * 100)}%`}</p></div></div><p className="mt-4 max-w-xl text-sm leading-relaxed text-ink-soft">Practice similarity is based on the recordings the analyser assessed. It is a learning measure, not a clinical score.</p>{adaptation && <div className="mt-6 rounded-2xl bg-paper-2 p-5"><p className="text-lg font-semibold text-ink">{adaptation.action === 'continue' ? 'Your next mission stays on this step.' : 'Your next mission has been updated.'}</p><p className="mt-1 text-sm leading-relaxed text-ink-soft">{adaptation.reason}</p>{profileAfter && <p className="mt-2 text-xs text-ink-faint">Current practice profile: {PHONEME_LABEL[profileAfter.phoneme]} · {profileAfter.trend} trend.</p>}</div>}<div className="mt-6 flex flex-wrap gap-3"><ButtonLink to="/plan" variant="sound">See next mission</ButtonLink><Button variant="outline" onClick={() => reset(sound)}>Play another Sound Sprint</Button></div></section>}
+  </main>
 }

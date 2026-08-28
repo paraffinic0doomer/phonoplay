@@ -5,6 +5,8 @@ import type { PhonemeResult, PronunciationProfile } from '../assessment/profile'
 import { SOUND_PROFILES } from '../data/sounds'
 import type { SoundId } from '../types/api'
 import { Button } from './Button'
+import { ErrorNotice } from './ErrorNotice'
+import type { AppError } from '../state/session'
 
 /**
  * The pronunciation profile.
@@ -74,9 +76,15 @@ function Row({ result }: { result: PhonemeResult }) {
 export function ProfileCard({
   profile,
   onContinue,
+  busy = false,
+  error = null,
+  onRetry,
 }: {
   profile: PronunciationProfile
   onContinue: () => void
+  busy?: boolean
+  error?: AppError | null
+  onRetry?: () => void
 }) {
   const focus = profile.firstFocus
 
@@ -123,10 +131,16 @@ export function ProfileCard({
       )}
 
       <div className="mt-8 flex flex-wrap gap-3">
-        <Button variant="sound" size="lg" onClick={onContinue}>
-          {focus ? `Practise ${PHONEME_LABEL[focus]}` : 'Choose a sound'}
+        <Button variant="sound" size="lg" onClick={onContinue} disabled={busy}>
+          {busy ? 'Building your plan…' : focus ? `Practise ${PHONEME_LABEL[focus]}` : 'Choose a sound'}
         </Button>
       </div>
+
+      {error && (
+        <div className="mt-6">
+          <ErrorNotice error={error} onRetry={onRetry} retryLabel="Build my plan again" />
+        </div>
+      )}
 
       {/* The measurement's own limits, next to the numbers rather than
           buried in a footer. */}

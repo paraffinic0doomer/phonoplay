@@ -1,28 +1,15 @@
-/**
- * The sentences PhonoPlay promises to say.
- *
- * Mirrors `api/app/safety.py`, which is where the backend's copies live and
- * where they are asserted exactly. They are duplicated here rather than
- * fetched because they must render even when the API is unreachable — a
- * disclaimer that disappears when the network does is not a disclaimer. The
- * browser suite asserts the rendered strings, so the two cannot drift far.
- *
- * Change one, change the other, in the same commit.
- */
+/** Learner-facing safety and privacy wording. */
 
-/** Shown wherever a result appears. */
 export const DISCLAIMER =
   'PhonoPlay provides educational pronunciation feedback and is not a medical diagnosis.'
 
-/** Shown when confidence falls below the floor. */
 export const UNCERTAIN = 'Unable to confidently assess this attempt.'
 
-/** Shown when the analysis could not run at all. */
 export const ANALYSIS_FAILED =
   "We couldn't confidently analyze this recording. Try again in a quieter environment."
 
 export const PRIVACY_SUMMARY =
-  'Recordings are analyzed and then discarded. PhonoPlay keeps the measurements, never the audio, and never asks for your name or any other personal detail.'
+  'Recordings are analyzed and then discarded. PhonoPlay keeps measurements in this browser, never raw audio, and never asks for your name or other personal details.'
 
 export interface HowItWorksStep {
   step: number
@@ -30,13 +17,6 @@ export interface HowItWorksStep {
   detail: string
 }
 
-/**
- * The four steps behind a result.
- *
- * Step 2 is the one worth reading twice: speech recognition is context, not a
- * score. It is listed because it happens, not because it measures how a sound
- * was made.
- */
 export const HOW_IT_WORKS: HowItWorksStep[] = [
   {
     step: 1,
@@ -48,60 +28,54 @@ export const HOW_IT_WORKS: HowItWorksStep[] = [
     step: 2,
     title: 'Speech recognition provides linguistic context',
     detail:
-      'A speech-to-text model reports which words it recognised. This is context, not a pronunciation score — it corrects mispronunciations toward real words, so it cannot tell you how a sound was produced.',
+      'A speech-to-text model reports which words it recognised. This is context, not a pronunciation score: it can correct mispronunciations toward real words, so it cannot tell you how a sound was produced.',
   },
   {
     step: 3,
-    title: 'Acoustic features help estimate pronunciation similarity',
+    title: 'Acoustic features estimate pronunciation similarity',
     detail:
-      "Measurements from the recording — where the sound's energy sits, how loud and how long it is, where the tongue shaped it — are compared against reference recordings. The result is a similarity estimate, not a verdict.",
+      'Measurements of sound energy, loudness, and duration are compared with reference recordings. The result is a similarity estimate, not a verdict.',
   },
   {
     step: 4,
     title: 'AI generates practice material',
     detail:
-      'A language model writes the next exercise. It never sees your recording and never decides how you did — that comes from the measurement alone.',
+      'A language model writes the next exercise. It never sees your recording and never decides how you did: that comes from the acoustic measurement alone.',
   },
 ]
 
 export interface AudioStage {
   label: string
-  leavesDevice: boolean
+  audioLeavesBrowser: boolean
   detail: string
 }
 
-/**
- * Where audio goes, per stage.
- *
- * Listed separately because the answers genuinely differ, and the honest
- * version has to include the uncomfortable one: transcription sends the
- * recording to a third party.
- */
+/** Exact handling of audio. No stage persists a raw recording. */
 export const AUDIO_HANDLING: AudioStage[] = [
   {
     label: 'Pronunciation analysis',
-    leavesDevice: false,
+    audioLeavesBrowser: true,
     detail:
-      'Runs on the PhonoPlay server. The recording is measured, the numbers are kept, and the audio is discarded when the request ends.',
+      'The recording is sent to the PhonoPlay analysis service, measured, and discarded when the request ends. Only derived measurements are saved in your browser.',
   },
   {
     label: 'Speech recognition',
-    leavesDevice: true,
+    audioLeavesBrowser: true,
     detail:
-      'The recording is sent to Groq, a third-party speech-to-text service, to work out which words were said. This is the only step that sends audio anywhere.',
+      'The older speech-recognition flow sends audio to Groq, a third-party service, for a transcript. A transcript is context only, never a pronunciation score.',
   },
   {
     label: 'Practice material',
-    leavesDevice: false,
+    audioLeavesBrowser: false,
     detail:
-      'The exercise generator receives text only — the target sound, the stage, and the language being practised. It never receives a recording or a score.',
+      'No audio is sent. The exercise generator receives only the target sound, practice stage, learning mode, and selected languages; it never receives a recording or a score.',
   },
 ]
 
-/** Stated plainly, so the UI never has to paraphrase a limit. */
 export const NOT_CLAIMED = [
   'PhonoPlay does not diagnose, assess, or treat any speech, language, hearing, or developmental condition.',
+  'Accessibility Mode is an alternative learning experience with smaller, calmer practice steps. It is not a medical mode or treatment.',
   'It cannot tell a pronunciation pattern apart from an accent, a regional variant, a head cold, or a poor microphone.',
-  'Its reference recordings are two synthesised adult voices, so it is least reliable for the children it is designed to help.',
+  'Its reference recordings are two synthesised adult voices, so results may be less reliable outside that reference context.',
   'A result is about one recording of one sound. It is not evidence about a person.',
 ]

@@ -60,7 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Wordmark />
           </Link>
 
-          <nav aria-label="Main" className="flex items-center gap-1">
+          <nav aria-label="Main" className="flex max-w-[68vw] items-center gap-1 overflow-x-auto sm:max-w-none">
             <NavLink to="/sounds" className={navLink}>
               Sounds
             </NavLink>
@@ -69,6 +69,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             </NavLink>
             <NavLink to="/games" className={navLink}>
               Play
+            </NavLink>
+            <NavLink to="/settings" aria-label="Preferences" className={navLink}>
+              <span className="hidden sm:inline">Settings</span><span className="sm:hidden" aria-hidden="true">⚙</span>
             </NavLink>
           </nav>
         </div>

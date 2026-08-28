@@ -1,4 +1,4 @@
-import { RECENT_SCORES_KEPT, db, newId, now } from './schema.ts'
+import { RECENT_SCORES_KEPT, db, now } from './schema.ts'
 import type { ContrastProfile, Phoneme, Trend } from './schema.ts'
 import { deriveTrend, setContrastAccuracy } from './phonemes.ts'
 
@@ -35,9 +35,28 @@ export function normaliseContrast(contrast: string): string {
     .join('-')
 }
 
+/**
+ * The row id for a pair, derived from the pair itself.
+ *
+ * Deterministic rather than random, because `contrast` carries a unique
+ * index and two callers reading the same pair at the same time both miss the
+ * read below and both write. With random ids that is two different rows
+ * competing for one unique key, and the second write fails:
+ *
+ *     ConstraintError: Unable to add key to index 'contrast'
+ *
+ * Reproduced with three concurrent reads, and reached in normal use by
+ * React's double-invoked effects in development, or simply by two components
+ * showing the same pair. Deriving the id means concurrent creates write the
+ * same row and the last one wins, which is correct — they are identical.
+ */
+function contrastId(contrast: string): string {
+  return `contrast-${contrast}`
+}
+
 function blank(contrast: string, phoneme: Phoneme): ContrastProfile {
   return {
-    id: newId(),
+    id: contrastId(contrast),
     contrast,
     phoneme,
     attempts: 0,

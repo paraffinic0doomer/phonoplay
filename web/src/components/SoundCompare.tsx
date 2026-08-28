@@ -46,48 +46,6 @@ function SoundFace({
   )
 }
 
-function SpectrumStrip({
-  centroid,
-  sibilantRatio,
-  tone,
-}: {
-  centroid: number | null
-  sibilantRatio: number | null
-  tone: 'target' | 'attempt'
-}) {
-  const centre = centroid ?? 0
-  const high = sibilantRatio ?? 0
-  const bars = Array.from({ length: 18 }, (_, index) => {
-    const frequency = 500 + index * 500
-    const distance = Math.abs(frequency - centre) / 4000
-    return Math.max(0.12, Math.min(1, 1 - distance * 0.7 + high * (index / 18) * 0.55))
-  })
-  return (
-    <div className="mt-3" role="img" aria-label="Simplified spectral shape of the analyzed sound">
-      <div className="flex h-16 items-end gap-1 rounded-xl bg-paper-2 px-3 py-2">
-        {bars.map((height, index) => (
-          <span
-            key={index}
-            className={`min-w-0 flex-1 origin-bottom rounded-full ${tone === 'target' ? 'sound-bg' : 'bg-ink'}`}
-            style={{ height: `${Math.round(height * 100)}%`, opacity: tone === 'target' ? 0.72 : 0.5 }}
-          />
-        ))}
-      </div>
-      <div className="mt-1 flex justify-between text-[0.65rem] text-ink-faint">
-        <span>low</span>
-        <span>high frequency</span>
-      </div>
-    </div>
-  )
-}
-
-const TARGET_SPECTRA: Record<SoundId, { centroid: number; ratio: number }> = {
-  s: { centroid: 6200, ratio: 0.58 },
-  r: { centroid: 1800, ratio: 0.08 },
-  l: { centroid: 2200, ratio: 0.1 },
-  th: { centroid: 3500, ratio: 0.25 },
-}
-
 interface SoundCompareProps {
   result: AttemptResult
   waveform: number[]
@@ -116,7 +74,20 @@ export function SoundCompare({ result, waveform, audio }: SoundCompareProps) {
     : undefined
 
   const profile = SOUND_PROFILES[result.prompt.target_sound]
-  const targetSpectrum = TARGET_SPECTRA[result.prompt.target_sound]
+  const measurements = [
+    result.acoustic_features.spectral_centroid_hz === null
+      ? null
+      : ['Energy centre', `${Math.round(result.acoustic_features.spectral_centroid_hz).toLocaleString()} Hz`],
+    result.acoustic_features.sibilant_ratio === null
+      ? null
+      : ['High-frequency share', result.acoustic_features.sibilant_ratio.toFixed(2)],
+    result.acoustic_features.f3_hz === null
+      ? null
+      : ['Third resonance', `${Math.round(result.acoustic_features.f3_hz).toLocaleString()} Hz`],
+    result.acoustic_features.target_duration_s === null
+      ? null
+      : ['Measured slice', `${result.acoustic_features.target_duration_s.toFixed(3)} s`],
+  ].filter((value): value is [string, string] => value !== null)
 
   return (
     <section
@@ -152,16 +123,19 @@ export function SoundCompare({ result, waveform, audio }: SoundCompareProps) {
         />
       </div>
 
-      <div className="mt-7 grid gap-4 border-t border-line pt-5 sm:grid-cols-2">
-        <div>
-          <h3 className="label-mono text-ink-faint">Target sound spectrum</h3>
-          <SpectrumStrip centroid={targetSpectrum.centroid} sibilantRatio={targetSpectrum.ratio} tone="target" />
+      {measurements.length > 0 && (
+        <div className="mt-7 border-t border-line pt-5">
+          <h3 className="label-mono text-ink-faint">Measurements from your recording</h3>
+          <dl className="mt-3 grid grid-cols-2 gap-3">
+            {measurements.map(([label, value]) => (
+              <div key={label} className="rounded-xl bg-paper-2 px-3 py-2.5">
+                <dt className="text-xs text-ink-faint">{label}</dt>
+                <dd className="mt-1 text-sm font-semibold tabular-nums text-ink">{value}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
-        <div className={!onTarget ? 'animate-rise' : ''}>
-          <h3 className="label-mono text-ink-faint">Your sound spectrum</h3>
-          <SpectrumStrip centroid={result.acoustic_features.spectral_centroid_hz} sibilantRatio={result.acoustic_features.sibilant_ratio} tone="attempt" />
-        </div>
-      </div>
+      )}
 
       {/* The model's own phoneme probabilities over the target segment. */}
       {heard.length > 0 && (

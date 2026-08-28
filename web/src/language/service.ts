@@ -1,4 +1,3 @@
-import { ENGLISH_ASSESSMENT_PROMPTS, ENGLISH_PHONEMES } from './english.ts'
 import { LANGUAGES, LANGUAGE_PAIRS, pairKey } from './languages.ts'
 import type {
   AssessmentPrompt,
@@ -26,14 +25,8 @@ import type {
  * state, not break the page.
  */
 
-/** Target languages PhonoPlay can actually measure. English, for now. */
-const PHONEMES_BY_TARGET: Record<string, PhonemeProfile[]> = {
-  en: ENGLISH_PHONEMES,
-}
-
-const PROMPTS_BY_TARGET: Record<string, AssessmentPrompt[]> = {
-  en: ENGLISH_ASSESSMENT_PROMPTS,
-}
+/** The only target default for the MVP. Future target profiles register here. */
+export const DEFAULT_TARGET_LANGUAGE: LanguageCode = 'en'
 
 export interface PhonemeQuery {
   /** Default 'en'. */
@@ -86,13 +79,13 @@ export const LanguageKnowledgeService = {
    * "this" is the one such case today.
    */
   getPhonemes(query: PhonemeQuery = {}): PhonemeProfile[] {
-    const { target = 'en', assessableOnly = true } = query
-    const all = PHONEMES_BY_TARGET[target] ?? []
+    const { target = DEFAULT_TARGET_LANGUAGE, assessableOnly = true } = query
+    const all = this.getLanguage(target)?.phonemeInventory ?? []
     return assessableOnly ? all.filter((phoneme) => phoneme.assessable) : [...all]
   },
 
-  getPhoneme(id: string, target: LanguageCode = 'en'): PhonemeProfile | undefined {
-    return (PHONEMES_BY_TARGET[target] ?? []).find((phoneme) => phoneme.id === id)
+  getPhoneme(id: string, target: LanguageCode = DEFAULT_TARGET_LANGUAGE): PhonemeProfile | undefined {
+    return this.getLanguage(target)?.phonemeInventory.find((phoneme) => phoneme.id === id)
   },
 
   /**
@@ -134,8 +127,8 @@ export const LanguageKnowledgeService = {
    * positions honestly; the assessment sticks to what can be scored.
    */
   getAssessmentPrompts(query: AssessmentQuery = {}): AssessmentPrompt[] {
-    const { target = 'en', native, limit } = query
-    const prompts = [...(PROMPTS_BY_TARGET[target] ?? [])]
+    const { target = DEFAULT_TARGET_LANGUAGE, native, limit } = query
+    const prompts = [...(this.getLanguage(target)?.assessmentPrompts ?? [])]
 
     if (native) {
       const pair = this.getLanguagePairProfile(native, target)
@@ -161,7 +154,7 @@ export const LanguageKnowledgeService = {
    */
   getLanguagePairProfile(
     native: string,
-    target: string = 'en',
+    target: string = DEFAULT_TARGET_LANGUAGE,
   ): LanguagePairProfile | undefined {
     return LANGUAGE_PAIRS[pairKey(native as LanguageCode, target as LanguageCode)]
   },
@@ -172,7 +165,7 @@ export const LanguageKnowledgeService = {
    * Convenience for a UI showing "why this sound first" — the rationale is
    * meant to be visible, not buried in the data.
    */
-  getHint(native: string, phoneme: string, target: string = 'en') {
+  getHint(native: string, phoneme: string, target: string = DEFAULT_TARGET_LANGUAGE) {
     return this.getLanguagePairProfile(native, target)?.hints.find(
       (hint) => hint.phoneme === phoneme,
     )

@@ -224,3 +224,45 @@ def test_later_stages_measure_only_the_first_occurrence():
     """A stated limitation, surfaced in the response rather than left implicit."""
     assert material.fallback("s", 3).first_occurrence_only is False
     assert material.fallback("s", 6).first_occurrence_only is True
+
+
+# ── Voiced and voiceless TH are different sounds ──────────────────────
+
+
+@pytest.mark.parametrize(
+    "word", ["think", "thank", "three", "thin", "theme", "thick", "thumb", "therapy"]
+)
+def test_voiceless_th_words_are_accepted(word):
+    assert starts_with_target(word, "th")
+
+
+@pytest.mark.parametrize(
+    "word",
+    ["the", "this", "that", "these", "those", "they", "their", "there", "therefore",
+     "then", "than", "though", "thus", "tho"],
+)
+def test_voiced_th_words_are_refused(word):
+    """
+    English spells the two TH sounds identically, and the reference corpus is
+    entirely voiceless — theme, thick, thin, thing, think, thumb. Material
+    beginning "the" or "this" would be measured against a profile for a
+    different sound, marking down a learner who produced it perfectly.
+
+    Observed in generated output: the phrase "the thick thrum" and the
+    sentence "This thing is theirs", both voiced at the onset.
+    """
+    assert not starts_with_target(word, "th")
+
+
+def test_the_exclusion_is_by_word_not_by_prefix():
+    # "theme" and "therapy" are voiceless and would be caught by any prefix
+    # rule broad enough to catch "the".
+    assert starts_with_target("theme", "th")
+    assert starts_with_target("therapy", "th")
+    assert not starts_with_target("the", "th")
+
+
+def test_every_th_bank_entry_is_voiceless():
+    for stage in range(7):
+        item = material.fallback("th", stage).item
+        assert starts_with_target(item.text, "th"), f"stage {stage}: {item.text!r}"
